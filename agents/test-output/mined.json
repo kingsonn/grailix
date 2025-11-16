@@ -1,0 +1,425 @@
+[
+  {
+    "raw_text": "Bitcoin Slides Below $95K in Worst Week Since March; Analyst Sets Downside Target at $84K",
+    "prediction_text": "Analyst Sets Downside Target at $84K",
+    "asset": "BTC",
+    "target_price": "$84K",
+    "direction": "DOWN",
+    "source": "Analyst",
+    "long_term": false
+  },
+  {
+    "raw_text": "XRP Slides 7% but ETF Launch Sets Stage for Potential Reversal Above $2.36",
+    "prediction_text": "Potential Reversal Above $2.36",
+    "asset": "XRP",
+    "target_price": "$2.36",
+    "direction": "UP",
+    "source": "Analysts",
+    "long_term": false
+  },
+  {
+    "raw_text": "ETH plunged below $3,100 on Friday",
+    "prediction_text": "below $3,100",
+    "asset": "ETH",
+    "target_price": "3100",
+    "direction": "DOWN",
+    "source": "https://feeds.feedburner.com/CoinDesk",
+    "long_term": false
+  },
+  {
+    "raw_text": "bitcoin losing the $100,000 level",
+    "prediction_text": "losing the $100,000 level",
+    "asset": "BTC",
+    "target_price": "100000",
+    "direction": "DOWN",
+    "source": "https://feeds.feedburner.com/CoinDesk",
+    "long_term": false
+  },
+  {
+    "raw_text": "Bitcoin Breaches $98K",
+    "prediction_text": "Bitcoin Breaches $98K",
+    "asset": "BTC",
+    "target_price": "$98K",
+    "direction": "UP",
+    "source": "https://feeds.feedburner.com/CoinDesk",
+    "long_term": false
+  },
+  {
+    "raw_text": "Bitcoin Plunges Under $97,000",
+    "prediction_text": "Bitcoin Plunges Under $97,000",
+    "asset": "BTC",
+    "target_price": "$97,000",
+    "direction": "DOWN",
+    "source": "https://feeds.feedburner.com/CoinDesk",
+    "long_term": false
+  },
+  {
+    "raw_text": "Solana Slides 5% to $145",
+    "prediction_text": "Solana Slides 5% to $145",
+    "asset": "SOL",
+    "target_price": 145,
+    "direction": "DOWN",
+    "source": "https://feeds.feedburner.com/CoinDesk",
+    "long_term": false
+  },
+  {
+    "raw_text": "Alongside bitcoin's tumble back to $98,000",
+    "prediction_text": "bitcoin's tumble back to $98,000",
+    "asset": "BTC",
+    "target_price": "98000",
+    "direction": "DOWN",
+    "source": "https://feeds.feedburner.com/CoinDesk",
+    "long_term": false
+  },
+  {
+    "raw_text": "MSTR is lower by another 6.6% on Thursday",
+    "prediction_text": "MSTR is lower by another 6.6% on Thursday",
+    "asset": "MSTR",
+    "target_price": null,
+    "direction": "DOWN",
+    "source": "https://feeds.feedburner.com/CoinDesk",
+    "long_term": false
+  },
+  {
+    "raw_text": "Chainlink Breaks Below $14.50",
+    "prediction_text": "Breaks Below $14.50",
+    "asset": "LINK",
+    "target_price": 14.5,
+    "direction": "DOWN",
+    "source": "https://feeds.feedburner.com/CoinDesk",
+    "long_term": false
+  },
+  {
+    "raw_text": "Stellar Tumbles Below Key $0.285 Support as Bears Take Over",
+    "prediction_text": "Below Key $0.285 Support",
+    "asset": "XLM",
+    "target_price": "0.285",
+    "direction": "DOWN",
+    "source": "https://feeds.feedburner.com/CoinDesk",
+    "long_term": false
+  },
+  {
+    "raw_text": "XLM retreated to $0.281 as selling pressure intensified during afternoon trading",
+    "prediction_text": "XLM retreated to $0.281",
+    "asset": "XLM",
+    "target_price": "0.281",
+    "direction": "DOWN",
+    "source": "https://feeds.feedburner.com/CoinDesk",
+    "long_term": false
+  },
+  {
+    "raw_text": "Bitcoin has slid from early-November levels near $110,000 to trade around $96,000",
+    "prediction_text": "near $110,000",
+    "asset": "BTC",
+    "target_price": null,
+    "direction": "DOWN",
+    "source": "10x Research",
+    "long_term": false
+  },
+  {
+    "raw_text": "Bitcoin has slid from early-November levels near $110,000 to trade around $96,000",
+    "prediction_text": "around $96,000",
+    "asset": "BTC",
+    "target_price": "$96,000",
+    "direction": "DOWN",
+    "source": "10x Research",
+    "long_term": false
+  },
+  {
+    "raw_text": "Bitcoin Slips Below $95k",
+    "prediction_text": "Below $95k",
+    "asset": "BTC",
+    "target_price": "$95,000",
+    "direction": "DOWN",
+    "source": "https://cryptonews.com/news/feed/",
+    "long_term": false
+  },
+  {
+    "raw_text": "Solana Price Prediction: Bullish Signal Flashes as Solana-Backed Firm Starts Buying Back Its Own Stock",
+    "prediction_text": "Bullish Signal",
+    "asset": "SOL",
+    "target_price": null,
+    "direction": "UP",
+    "source": "Upexi",
+    "long_term": true
+  },
+  {
+    "raw_text": "targets from $3.82 to $5.17",
+    "prediction_text": "targets from $3.82 to $5.17",
+    "asset": "XRP",
+    "target_price": "$3.82-$5.17",
+    "direction": "UP",
+    "source": "Analyst",
+    "long_term": true
+  },
+  {
+    "raw_text": "Analyst Predicts $4 Breakout Soon",
+    "prediction_text": "Analyst Predicts $4 Breakout Soon",
+    "asset": "XRP",
+    "target_price": "$4",
+    "direction": "UP",
+    "source": "Analyst",
+    "long_term": false
+  },
+  {
+    "raw_text": "ADA testing support around $0.50",
+    "prediction_text": "ADA testing support around $0.50",
+    "asset": "ADA",
+    "target_price": "0.50",
+    "direction": "DOWN",
+    "source": "Cardano Price Prediction",
+    "long_term": false
+  },
+  {
+    "raw_text": "Brutal Crash to $0 Possible",
+    "prediction_text": "Brutal Crash to $0",
+    "asset": "PI",
+    "target_price": "0",
+    "direction": "DOWN",
+    "source": "Pi Coin Price Prediction",
+    "long_term": true
+  },
+  {
+    "raw_text": "Jupiter price dips – Can $26M Q4 holder income help JUP’s recovery",
+    "prediction_text": "JUP’s recovery",
+    "asset": "JUP",
+    "target_price": null,
+    "direction": "UP",
+    "source": "https://ambcrypto.com/feed/",
+    "long_term": false
+  },
+  {
+    "raw_text": "Bitcoin breakdown below $100,000",
+    "prediction_text": "Bitcoin breakdown below $100,000",
+    "asset": "BTC",
+    "target_price": "100,000",
+    "direction": "DOWN",
+    "source": "https://ambcrypto.com/feed/",
+    "long_term": false
+  },
+  {
+    "raw_text": "Ethereum buyers defend $3,150",
+    "prediction_text": "$3,150",
+    "asset": "ETH",
+    "target_price": "$3,150",
+    "direction": "UP",
+    "source": "https://ambcrypto.com/feed/",
+    "long_term": false
+  },
+  {
+    "raw_text": "100x potential",
+    "prediction_text": "100x potential",
+    "asset": "TAP",
+    "target_price": null,
+    "direction": "UP",
+    "source": "https://ambcrypto.com/feed/",
+    "long_term": true
+  },
+  {
+    "raw_text": "Bitcoin broke through the critical $100,000 support level",
+    "prediction_text": "Bitcoin broke through the critical $100,000 support level",
+    "asset": "BTC",
+    "target_price": "100,000",
+    "direction": "DOWN",
+    "source": "https://ambcrypto.com/feed/",
+    "long_term": false
+  },
+  {
+    "raw_text": "plunging to $97,031",
+    "prediction_text": "plunging to $97,031",
+    "asset": "BTC",
+    "target_price": "97,031",
+    "direction": "DOWN",
+    "source": "https://ambcrypto.com/feed/",
+    "long_term": false
+  },
+  {
+    "raw_text": "Bitcoin in the mid-$90,000s",
+    "prediction_text": "mid-$90,000s",
+    "asset": "BTC",
+    "target_price": "90000",
+    "direction": "UNKNOWN",
+    "source": "Ki Young Ju",
+    "long_term": true
+  },
+  {
+    "raw_text": "Ethereum (ETH) Will Fight for $3,000",
+    "prediction_text": "Ethereum (ETH) Will Fight for $3,000",
+    "asset": "ETH",
+    "target_price": "3000",
+    "direction": "UP",
+    "source": "https://u.today/rss",
+    "long_term": true
+  },
+  {
+    "raw_text": "Bitcoin (BTC) Sinks in $1,300,000,000 Bloodbath",
+    "prediction_text": "Bitcoin (BTC) Sinks in $1,300,000,000 Bloodbath",
+    "asset": "BTC",
+    "target_price": null,
+    "direction": "DOWN",
+    "source": "https://u.today/rss",
+    "long_term": true
+  },
+  {
+    "raw_text": "Bitcoin saw a crash below $95,000 for the first time since May this year",
+    "prediction_text": "below $95,000",
+    "asset": "BTC",
+    "target_price": "$95,000",
+    "direction": "DOWN",
+    "source": "Tether CEO",
+    "long_term": false
+  },
+  {
+    "raw_text": "Bitcoin Black Friday: Tether CEO Reacts to BTC's Surprising Crash Below $100,000",
+    "prediction_text": "Below $100,000",
+    "asset": "BTC",
+    "target_price": "$100,000",
+    "direction": "DOWN",
+    "source": "Tether CEO",
+    "long_term": false
+  },
+  {
+    "raw_text": "Can bulls restore the rate of Bitcoin (BTC) above $100,000 by the end of the week?",
+    "prediction_text": "above $100,000 by the end of the week",
+    "asset": "BTC",
+    "target_price": "100,000",
+    "direction": "UP",
+    "source": "https://u.today/rss",
+    "long_term": false
+  },
+  {
+    "raw_text": "Can bulls keep the price of Cardano (ADA) above $0.50?",
+    "prediction_text": "above $0.50",
+    "asset": "ADA",
+    "target_price": "$0.50",
+    "direction": "UP",
+    "source": "https://u.today/rss",
+    "long_term": false
+  },
+  {
+    "raw_text": "Bitcoin stopped being the people's asset and lost the spirit that built it, argued legendary trader Peter Brandt as the prime cryptocurrency lost the $100,000 price tag, and there is no plunge protection yet.",
+    "prediction_text": "lost the $100,000 price tag",
+    "asset": "BTC",
+    "target_price": "$100,000",
+    "direction": "DOWN",
+    "source": "Peter Brandt",
+    "long_term": false
+  },
+  {
+    "raw_text": "Can the rate of Binance Coin (BNB) remain above $900 until the end of the week?",
+    "prediction_text": "above $900",
+    "asset": "BNB",
+    "target_price": "900",
+    "direction": "UP",
+    "source": "https://u.today/rss",
+    "long_term": false
+  },
+  {
+    "raw_text": "Bitcoin is getting absolutely clobbered as whales ramp up selling.",
+    "prediction_text": "BTC Collapses Below $95K",
+    "asset": "BTC",
+    "target_price": "$95K",
+    "direction": "DOWN",
+    "source": "https://u.today/rss",
+    "long_term": false
+  },
+  {
+    "raw_text": "loses the coveted $100,000 price level",
+    "prediction_text": "loses the $100,000 price level",
+    "asset": "BTC",
+    "target_price": "100000",
+    "direction": "DOWN",
+    "source": "Billy Markus",
+    "long_term": false
+  },
+  {
+    "raw_text": "Binance Coin to $1,000 Again?",
+    "prediction_text": "Binance Coin to $1,000",
+    "asset": "Binance Coin",
+    "target_price": "1000",
+    "direction": "UP",
+    "source": "https://u.today/rss",
+    "long_term": true
+  },
+  {
+    "raw_text": "Bitcoin slips under $100,000",
+    "prediction_text": "Bitcoin below $100,000",
+    "asset": "BTC",
+    "target_price": "100,000",
+    "direction": "DOWN",
+    "source": "Binance founder CZ",
+    "long_term": false
+  },
+  {
+    "raw_text": "'$1 Million BTC' Advocate Mow Points to Bear Trap Setup as Bitcoin Loses $100,000",
+    "prediction_text": "$1 Million BTC",
+    "asset": "BTC",
+    "target_price": "1000000",
+    "direction": "UP",
+    "source": "Samson Mow",
+    "long_term": true
+  },
+  {
+    "raw_text": "get back above $3,500 soon",
+    "prediction_text": "get back above $3,500",
+    "asset": "ETH",
+    "target_price": "3500",
+    "direction": "UP",
+    "source": "https://u.today/rss",
+    "long_term": false
+  },
+  {
+    "raw_text": "DOGE to test the $0.20 zone soon",
+    "prediction_text": "test the $0.20 zone",
+    "asset": "DOGE",
+    "target_price": "0.20",
+    "direction": "UP",
+    "source": "https://u.today/rss",
+    "long_term": false
+  },
+  {
+    "raw_text": "Can the price of SHIB get back above $0.000010 this week?",
+    "prediction_text": "get back above $0.000010",
+    "asset": "SHIB",
+    "target_price": "$0.000010",
+    "direction": "UP",
+    "source": "https://u.today/rss",
+    "long_term": false
+  },
+  {
+    "raw_text": "Can the rate of ZEC remain above $500 this week?",
+    "prediction_text": "above $500",
+    "asset": "ZEC",
+    "target_price": "500",
+    "direction": "UP",
+    "source": "https://u.today/rss",
+    "long_term": false
+  },
+  {
+    "raw_text": "30-billion-yen bet",
+    "prediction_text": "30-billion-yen bet",
+    "asset": "XRP",
+    "target_price": null,
+    "direction": "UNKNOWN",
+    "source": "Yoshitaka Kitao",
+    "long_term": true
+  },
+  {
+    "raw_text": "giving DOGE a brief 5% pop",
+    "prediction_text": "5% pop",
+    "asset": "DOGE",
+    "target_price": null,
+    "direction": "UP",
+    "source": "https://u.today/rss",
+    "long_term": false
+  },
+  {
+    "raw_text": "Circle's stock plunging from $300 hype by 71%",
+    "prediction_text": "Circle's stock plunging from $300 hype by 71%",
+    "asset": "CRCL",
+    "target_price": null,
+    "direction": "DOWN",
+    "source": "Peter Schiff",
+    "long_term": false
+  }
+]

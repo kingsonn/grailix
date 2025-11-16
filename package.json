@@ -7,9 +7,12 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "agent:miner": "ts-node --project tsconfig.agent.json agents/test/miner.test.ts"
+    "agent:miner": "tsx agents/test/miner.test.ts",
+    "yahoo:test": "tsx agents/test/yahoo-test.ts",
+    "agent:ingest": "tsx agents/agent-ingestor.ts"
   },
   "dependencies": {
+    "@googleapis/sheets": "^12.0.0",
     "@rainbow-me/rainbowkit": "^2.0.0",
     "@supabase/supabase-js": "^2.39.0",
     "@tanstack/react-query": "^5.28.0",
@@ -18,7 +21,9 @@
     "dotenv": "^16.4.0",
     "encoding": "^0.1.13",
     "ethers": "^6.15.0",
+    "google-auth-library": "^10.5.0",
     "groq-sdk": "^0.35.0",
+    "luxon": "^3.7.2",
     "next": "^14.2.0",
     "next-safe-action": "^7.0.0",
     "node-fetch": "^3.3.2",
@@ -40,6 +45,7 @@
     "prettier": "^3.2.0",
     "tailwindcss": "^3.4.0",
     "ts-node": "^10.9.2",
+    "tsx": "^4.20.6",
     "typescript": "^5.9.3"
   }
 }

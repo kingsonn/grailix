@@ -1,17 +1,27 @@
 "use client";
 
+import { ReactNode } from "react";
 import { WagmiProvider } from "wagmi";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RainbowKitProvider } from "@rainbow-me/rainbowkit";
 import { config } from "@/lib/contract";
 import "@rainbow-me/rainbowkit/styles.css";
 
-const queryClient = new QueryClient();
+// Create QueryClient ONCE outside component to prevent re-initialization
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
 
 /**
- * Providers wrapper for wagmi, RainbowKit, and React Query
+ * WalletProvider - Single source of truth for wagmi + RainbowKit
+ * This component wraps the entire app and initializes wallet providers ONCE
  */
-export default function Providers({ children }: { children: React.ReactNode }) {
+export default function WalletProvider({ children }: { children: ReactNode }) {
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>

@@ -25,7 +25,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     return res.status(200).json({
       success: true,
-      data: users || [],
+      data: { leaderboard: users || [] },
     });
   } catch (error) {
     console.error("Leaderboard API error:", error);
