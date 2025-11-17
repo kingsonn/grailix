@@ -11,6 +11,8 @@ interface Prediction {
   id: number;
   prediction_text: string;
   asset: string;
+  asset_type?: string;
+  raw_text?: string;
   expiry_timestamp: string;
   sentiment_yes: number;
   sentiment_no: number;
@@ -25,6 +27,8 @@ export default function PredictClient() {
   const [showStakeModal, setShowStakeModal] = useState(false);
   const [selectedPosition, setSelectedPosition] = useState<"YES" | "NO" | "SKIP" | null>(null);
   const [stakeAmount, setStakeAmount] = useState(10);
+  const [category, setCategory] = useState<"all" | "stock" | "crypto">("all");
+  const [timeLeft, setTimeLeft] = useState("");
 
   // Auto-refresh user data when wallet account changes
   useEffect(() => {
@@ -41,7 +45,7 @@ export default function PredictClient() {
     setError(null);
 
     try {
-      const response = await fetch(`/api/predictions/next?user_wallet_address=${user.wallet_address}`);
+      const response = await fetch(`/api/predictions/next?user_wallet_address=${user.wallet_address}&asset_type=${category}`);
       const data = await response.json();
 
       if (data.success) {
@@ -57,12 +61,42 @@ export default function PredictClient() {
     }
   };
 
-  // Load prediction on mount
+  // Load prediction on mount or when category changes
   useEffect(() => {
     if (user) {
       fetchNextPrediction();
     }
-  }, [user]);
+  }, [user, category]);
+
+  // Countdown timer
+  useEffect(() => {
+    if (!prediction?.expiry_timestamp) {
+      setTimeLeft("");
+      return;
+    }
+
+    const interval = setInterval(() => {
+      const now = new Date().getTime();
+      const expiry = new Date(prediction.expiry_timestamp).getTime();
+      const diff = Math.max(expiry - now, 0);
+
+      const minutes = Math.floor(diff / 60000);
+      const seconds = Math.floor((diff % 60000) / 1000);
+
+      setTimeLeft(`${minutes}:${seconds.toString().padStart(2, "0")}`);
+
+      if (diff <= 0) {
+        clearInterval(interval);
+        setTimeLeft("Expired");
+        // Auto-load next prediction after 2 seconds
+        setTimeout(() => {
+          fetchNextPrediction();
+        }, 2000);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [prediction]);
 
   // Handle stake submission
   const handleStake = async () => {
@@ -163,6 +197,42 @@ export default function PredictClient() {
           <div className="w-16" />
         </div>
 
+        {/* Category Filter */}
+        {isConnected && user && (
+          <div className="flex gap-3 mb-6 justify-center">
+            <button
+              onClick={() => setCategory("all")}
+              className={`px-6 py-2 rounded-lg font-bold transition-colors ${
+                category === "all"
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+              }`}
+            >
+              All
+            </button>
+            <button
+              onClick={() => setCategory("stock")}
+              className={`px-6 py-2 rounded-lg font-bold transition-colors ${
+                category === "stock"
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+              }`}
+            >
+              📈 Stocks
+            </button>
+            <button
+              onClick={() => setCategory("crypto")}
+              className={`px-6 py-2 rounded-lg font-bold transition-colors ${
+                category === "crypto"
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+              }`}
+            >
+              ₿ Crypto
+            </button>
+          </div>
+        )}
+
         {/* Error Message */}
         {error && (
           <div className="bg-red-900 bg-opacity-50 border border-red-500 text-red-200 p-4 rounded-lg mb-6">
@@ -201,18 +271,44 @@ export default function PredictClient() {
         {isConnected && user && prediction && !isLoading && (
           <>
             <div className="bg-gray-800 rounded-lg p-6 shadow-lg mb-6">
-              {/* Asset Badge */}
+              {/* Asset Badge & Countdown */}
               <div className="flex justify-between items-center mb-4">
-                <span className="bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-bold">
-                  {prediction.asset}
-                </span>
-                <span className="text-gray-400 text-sm">
-                  Expires: {new Date(prediction.expiry_timestamp).toLocaleString()}
-                </span>
+                <div className="flex gap-2 items-center">
+                  <span className="bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-bold">
+                    {prediction.asset}
+                  </span>
+                  {prediction.asset_type && (
+                    <span className="bg-gray-700 text-gray-300 px-3 py-1 rounded-full text-xs">
+                      {prediction.asset_type === "crypto" ? "₿ Crypto" : "📈 Stock"}
+                    </span>
+                  )}
+                </div>
+                <div className="text-right">
+                  <div className="text-orange-400 font-bold text-sm flex items-center gap-1">
+                    <span>⏳</span>
+                    <span>{timeLeft || "Loading..."}</span>
+                  </div>
+                  <span className="text-gray-500 text-xs">
+                    {new Date(prediction.expiry_timestamp).toLocaleString()}
+                  </span>
+                </div>
               </div>
 
               {/* Prediction Text */}
               <p className="text-2xl font-bold mb-6 text-center">{prediction.prediction_text}</p>
+
+              {/* Raw Text / Source Insight */}
+              {prediction.raw_text && (
+                <div className="mb-6 bg-gray-900 p-4 rounded-lg border border-gray-700">
+                  <h3 className="text-sm font-bold text-gray-400 mb-2 flex items-center gap-2">
+                    <span>📰</span>
+                    <span>Source Insight (Raw News)</span>
+                  </h3>
+                  <p className="text-sm text-gray-300 leading-relaxed">
+                    {prediction.raw_text}
+                  </p>
+                </div>
+              )}
 
               {/* Sentiment Bar */}
               <div className="mb-6">

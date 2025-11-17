@@ -74,10 +74,11 @@ async function processRow(row: {
   id: string;
   raw_text: string;
   ticker: string;
+  asset_type?: string | null;
   source_name?: string | null;
   source_url?: string | null;
 }) {
-  const { id, raw_text, ticker, source_name, source_url } = row;
+  const { id, raw_text, ticker, asset_type, source_name, source_url } = row;
 
   console.log(`Processing raw id=${id} ticker=${ticker}`);
 
@@ -118,8 +119,11 @@ async function processRow(row: {
   }
 
   // Determine expiry per card (stock vs crypto)
-  const isCrypto = isProbablyCrypto(ticker);
+  // Use asset_type if available, otherwise fallback to heuristic
+  const normalizedAssetType = (asset_type || "").toLowerCase();
+  const isCrypto = normalizedAssetType === "crypto" || (normalizedAssetType !== "stock" && isProbablyCrypto(ticker));
   const expiry = isCrypto ? getExpiryForCrypto() : getExpiryForStockNowUSClose();
+  const finalAssetType = normalizedAssetType === "crypto" || normalizedAssetType === "stock" ? normalizedAssetType : (isCrypto ? "crypto" : "stock");
 
   // Insert each card into predictions table
   for (const card of cardsRaw) {
@@ -129,6 +133,8 @@ async function processRow(row: {
         source_name: source_name || null,
         source_category: "Analyst",
         asset: ticker,
+        asset_type: finalAssetType,
+        raw_text: raw_text,
         expiry_timestamp: expiry,
         sentiment_yes: 0,
         sentiment_no: 0,

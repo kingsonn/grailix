@@ -11,11 +11,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const { user_wallet_address } = req.query;
+    const { user_wallet_address, asset_type } = req.query;
 
     // Validate input
     if (!user_wallet_address || typeof user_wallet_address !== "string") {
       return res.status(400).json({ success: false, error: "user_wallet_address is required" });
+    }
+
+    // Validate asset_type if provided
+    const validAssetTypes = ["crypto", "stock", "all"];
+    const filterAssetType = asset_type && typeof asset_type === "string" ? asset_type.toLowerCase() : "all";
+    if (!validAssetTypes.includes(filterAssetType)) {
+      return res.status(400).json({ success: false, error: "asset_type must be 'crypto', 'stock', or 'all'" });
     }
 
     // Normalize wallet address to lowercase
@@ -49,10 +56,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Fetch next available prediction
     let query = supabase
       .from("predictions")
-      .select("id, prediction_text, source_name, source_category, asset, expiry_timestamp, sentiment_yes, sentiment_no")
+      .select("id, prediction_text, source_name, source_category, asset, asset_type, raw_text, expiry_timestamp, sentiment_yes, sentiment_no")
       .eq("status", "pending")
       .gt("expiry_timestamp", new Date().toISOString())
       .order("created_timestamp", { ascending: true });
+
+    // Filter by asset_type if not 'all'
+    if (filterAssetType !== "all") {
+      query = query.eq("asset_type", filterAssetType);
+    }
 
     // Exclude predictions user has already swiped
     if (swipedPredictionIds.length > 0) {

@@ -3,9 +3,10 @@
  * Agent-1: Google Sheets -> Supabase (ai_raw_inputs)
  *
  * Sheet header (case-sensitive) must include:
- *   raw_text | ticker | source_name | source_url | processed
+ *   raw_text | ticker | asset_type | source_name | source_url | processed
  *
- * You (human) fill the first 4 columns. Agent will set processed = TRUE.
+ * You (human) fill the first 5 columns. Agent will set processed = TRUE.
+ * asset_type must be either "crypto" or "stock"
  *
  * ENV variables required:
  *   - GOOGLE_SHEET_ID
@@ -14,7 +15,7 @@
  *   - SUPABASE_SERVICE_ROLE_KEY
  *
  * Supabase table expected: ai_raw_inputs
- * Columns: id (uuid, auto), raw_text (text), ticker (text), source_name (text), source_url (text), created_at (timestamp auto)
+ * Columns: id (uuid, auto), raw_text (text), ticker (text), asset_type (text), source_name (text), source_url (text), created_at (timestamp auto)
  */
 
 import "dotenv/config";
@@ -34,7 +35,7 @@ if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_A
 }
 
 const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID!;
-const READ_RANGE = "Sheet1!A1:E999"; // header + rows
+const READ_RANGE = "Sheet1!A1:F999"; // header + rows (now includes asset_type)
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
 
 // Parse creds once
@@ -72,13 +73,14 @@ export async function runAgent1() {
   const header = (rows[0] || []).map((h) => String(h || "").trim());
   const rawIdx = header.indexOf("raw_text");
   const tickerIdx = header.indexOf("ticker");
+  const assetTypeIdx = header.indexOf("asset_type");
   const srcNameIdx = header.indexOf("source_name");
   const srcUrlIdx = header.indexOf("source_url");
   const processedIdx = header.indexOf("processed");
 
-  if (rawIdx === -1 || tickerIdx === -1 || srcNameIdx === -1 || srcUrlIdx === -1) {
+  if (rawIdx === -1 || tickerIdx === -1 || assetTypeIdx === -1 || srcNameIdx === -1 || srcUrlIdx === -1) {
     throw new Error(
-      "Sheet header missing required columns. Required header columns: raw_text, ticker, source_name, source_url, processed"
+      "Sheet header missing required columns. Required header columns: raw_text, ticker, asset_type, source_name, source_url, processed"
     );
   }
 
@@ -96,13 +98,21 @@ export async function runAgent1() {
 
     const raw_text = rowSafe[rawIdx] || "";
     const ticker = rowSafe[tickerIdx] || "";
+    const asset_type = rowSafe[assetTypeIdx] || "";
     const source_name = rowSafe[srcNameIdx] || "";
     const source_url = rowSafe[srcUrlIdx] || "";
     const processed = processedIdx !== -1 ? rowSafe[processedIdx] : "";
 
     // skip blanks or already processed
-    if (!raw_text || !ticker) {
-      console.log(`Skipping sheet row ${i + 1} — missing raw_text or ticker.`);
+    if (!raw_text || !ticker || !asset_type) {
+      console.log(`Skipping sheet row ${i + 1} — missing raw_text, ticker, or asset_type.`);
+      continue;
+    }
+    
+    // validate asset_type
+    const normalizedAssetType = asset_type.toLowerCase();
+    if (normalizedAssetType !== "crypto" && normalizedAssetType !== "stock") {
+      console.log(`Skipping sheet row ${i + 1} — invalid asset_type "${asset_type}". Must be "crypto" or "stock".`);
       continue;
     }
     if (processed && processed.toUpperCase() === "TRUE") {
@@ -116,6 +126,7 @@ export async function runAgent1() {
         {
           raw_text,
           ticker,
+          asset_type: normalizedAssetType,
           source_name: source_name || null,
           source_url: source_url || null,
         },
@@ -139,7 +150,7 @@ export async function runAgent1() {
         const updatedRow = rowSafe.slice(0, header.length);
         updatedRow[processedIdx] = "TRUE";
         updates.push({
-          range: `Sheet1!A${sheetRowNumber}:E${sheetRowNumber}`,
+          range: `Sheet1!A${sheetRowNumber}:F${sheetRowNumber}`,
           values: updatedRow,
         });
       }

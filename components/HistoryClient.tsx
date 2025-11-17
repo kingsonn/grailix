@@ -11,6 +11,8 @@ interface HistoryItem {
   id: number;
   prediction_text: string;
   asset: string;
+  asset_type?: string;
+  raw_text?: string;
   position: string;
   stake_credits: number;
   payout_credits: number | null;
