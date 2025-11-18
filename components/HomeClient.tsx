@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useAccount } from "wagmi";
 import { useUser } from "@/lib/useUser";
 import WalletConnectButton from "@/components/WalletConnectButton";
+import ClaimFaucetButton from "@/components/ClaimFaucetButton";
 import AppLayout from "@/components/AppLayout";
 import Link from "next/link";
 
@@ -274,15 +275,7 @@ export default function HomeClient() {
                     </div>
                   </Link>
                   
-                  <Link
-                    href="/profile"
-                    className="group bg-gradient-to-br from-void-graphite to-grail/5 hover:from-grail/10 hover:to-grail/20 border border-grail/20 hover:border-grail/50 rounded-lg p-4 transition-all hover:shadow-lg hover:shadow-grail/20"
-                  >
-                    <div className="text-center">
-                      <div className="text-3xl mb-2 group-hover:scale-110 transition-transform">👤</div>
-                      <p className="text-xs font-mono font-bold text-gray-400 group-hover:text-grail-light transition-colors uppercase tracking-wider">Profile</p>
-                    </div>
-                  </Link>
+                  <ClaimFaucetButton />
                 </div>
               </div>
             </div>
