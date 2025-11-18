@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/run-agent1",
+      "schedule": "*/1 * * * *"
+    },
+    {
+      "path": "/api/run-agent3",
+      "schedule": "*/1 * * * *"
+    }
+  ]
+}

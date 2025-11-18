@@ -393,12 +393,5 @@ export async function runAgent2ForIds(ids?: string[]) {
   console.log("\n✅ Agent-2 done.");
 }
 
-// Run as CLI if executed directly
-if (require.main === module) {
-  (async () => {
-    await runAgent2ForIds();
-  })().catch((e) => {
-    console.error("❌ Agent-2 fatal:", e);
-    process.exit(1);
-  });
-}
+// CLI entry point removed for serverless compatibility
+// Agent-2 is called internally by Agent-1, not as a standalone endpoint

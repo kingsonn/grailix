@@ -79,11 +79,10 @@ type ResolutionReport = {
 // -------------------- Config --------------------
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const SUPABASE_SERVICE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-  console.error("❌ Missing Supabase env vars");
-  process.exit(1);
+  throw new Error("❌ Missing Supabase env vars");
 }
 
 const supabase: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
@@ -661,12 +660,5 @@ export async function runResolver(): Promise<void> {
 }
 
 // -------------------- CLI Entry Point --------------------
-
-if (require.main === module) {
-  (async () => {
-    await runResolver();
-  })().catch((e) => {
-    console.error("❌ Agent-3 fatal:", e);
-    process.exit(1);
-  });
-}
+// CLI entry point removed for serverless compatibility
+// Use /pages/api/run-agent3.ts endpoint instead
