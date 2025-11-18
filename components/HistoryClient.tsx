@@ -13,6 +13,9 @@ interface HistoryItem {
   asset: string;
   asset_type?: string;
   raw_text?: string;
+  betting_close?: string;
+  direction?: string;
+  reference_type?: string;
   position: string;
   stake_credits: number;
   payout_credits: number | null;

@@ -6,8 +6,15 @@ import WalletProvider from "@/providers/wallet-provider";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Grailix - AI-Powered Prediction Market",
-  description: "Swipe-based financial prediction skill game powered by Web3",
+  title: "GRAILIX - Outsmart the Market",
+  description: "Professional prediction markets powered by blockchain. Make informed predictions and win rewards.",
+  keywords: ["prediction market", "crypto", "trading", "blockchain", "web3", "predictions"],
+  authors: [{ name: "Grailix" }],
+  openGraph: {
+    title: "GRAILIX - Outsmart the Market",
+    description: "Professional prediction markets powered by blockchain",
+    type: "website",
+  },
 };
 
 export default function RootLayout({

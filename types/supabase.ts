@@ -4,8 +4,7 @@
 export interface User {
   id: string;
   wallet_address: string;
-  credits_balance: number;
-  real_credits_balance: number;
+  real_credits_balance: number; // MockUSDC credits from blockchain
   xp: number;
   streak: number;
   accuracy: number;

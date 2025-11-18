@@ -1,40 +1,12 @@
-import { http } from "wagmi";
-import { bscTestnet } from "wagmi/chains";
-import { getDefaultConfig } from "@rainbow-me/rainbowkit";
-import { injectedWallet, metaMaskWallet } from "@rainbow-me/rainbowkit/wallets";
+import { getWalletClient } from "./wallet/initWallet";
 
 // Contract addresses from .env
 export const VAULT_ADDRESS = process.env.NEXT_PUBLIC_VAULT_ADDRESS as `0x${string}`;
 export const TOKEN_ADDRESS = process.env.NEXT_PUBLIC_TOKEN_ADDRESS as `0x${string}`;
 
-// Singleton pattern: Create wagmi config ONCE
-// This prevents "WalletConnect Core is already initialized" errors
-let _config: ReturnType<typeof getDefaultConfig> | null = null;
-
-function createWagmiConfig() {
-  if (_config) return _config;
-  
-  _config = getDefaultConfig({
-    appName: "Grailix",
-    chains: [bscTestnet],
-    wallets: [
-      {
-        groupName: "Recommended",
-        wallets: [injectedWallet, metaMaskWallet],
-      },
-    ],
-    transports: {
-      [bscTestnet.id]: http(process.env.NEXT_PUBLIC_RPC_URL),
-    },
-    projectId: "80c9842d3a91141274ff249d103235c4",
-    ssr: true, // Enable SSR support
-  });
-  
-  return _config;
-}
-
-// Export the singleton config
-export const config = createWagmiConfig();
+// Export wallet config using the singleton pattern
+// This ensures WalletConnect is initialized only ONCE
+export const config = getWalletClient();
 
 // MockUSDC ABI (minimal - only functions we need)
 export const MockUSDC_ABI = [

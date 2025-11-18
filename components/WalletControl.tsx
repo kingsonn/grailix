@@ -17,10 +17,12 @@ export default function WalletControl() {
   return (
     <button
       onClick={() => disconnect()}
-      className="text-sm px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-medium shadow-md"
+      className="flex items-center gap-2 text-xs sm:text-sm px-3 sm:px-4 py-2 bg-loss/10 hover:bg-loss/20 text-loss border border-loss/30 hover:border-loss/50 rounded-lg transition-all font-mono shadow-lg"
       title={`Disconnect ${address}`}
     >
-      Disconnect ({shortAddress})
+      <div className="w-1.5 h-1.5 rounded-full bg-loss animate-pulse shadow-lg shadow-loss/50"></div>
+      <span>DISCONNECT</span>
+      <span className="hidden sm:inline font-mono text-gray-400">({shortAddress})</span>
     </button>
   );
 }

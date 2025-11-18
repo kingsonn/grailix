@@ -24,22 +24,14 @@ interface Prediction {
 export default function PredictClient() {
   const { address, isConnected } = useAccount();
   const { user, isLoading: userLoading, refetch } = useUser();
-  const [prediction, setPrediction] = useState<Prediction | null>(null);
+  const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedPosition, setSelectedPosition] = useState<"YES" | "NO" | null>(null);
+  const [showStakeModal, setShowStakeModal] = useState(false);
+  const [selectedPrediction, setSelectedPrediction] = useState<Prediction | null>(null);
+  const [selectedPosition, setSelectedPosition] = useState<"YES" | "NO" | "SKIP" | null>(null);
   const [stakeAmount, setStakeAmount] = useState(10);
   const [category, setCategory] = useState<"all" | "stock" | "crypto">("all");
-  const [timeLeft, setTimeLeft] = useState("");
-  const [timeToBettingClose, setTimeToBettingClose] = useState("");
-  const [bettingClosed, setBettingClosed] = useState(false);
-  const [skippedIds, setSkippedIds] = useState<number[]>([]); // Track skipped prediction IDs
-  
-  // Swipe gesture states
-  const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
-  const [touchCurrent, setTouchCurrent] = useState<{ x: number; y: number } | null>(null);
-  const [isSwiping, setIsSwiping] = useState(false);
 
   // Auto-refresh user data
   useEffect(() => {
@@ -48,70 +40,60 @@ export default function PredictClient() {
     }
   }, [address, isConnected, refetch]);
 
-  // Fetch next prediction with optional excluded IDs
-  const fetchNextPrediction = async (excludedIds?: number[]) => {
+  // Fetch multiple predictions
+  const fetchPredictions = async () => {
     if (!user) return;
 
+    setIsLoading(true);
     setError(null);
-    setBettingClosed(false);
-    setTimeToBettingClose("");
-    setTimeLeft("");
 
     try {
-      // Use provided excludedIds or fall back to state
-      const idsToExclude = excludedIds !== undefined ? excludedIds : skippedIds;
-      const excludeIds = idsToExclude.join(',');
-      const url = `/api/predictions/next?user_wallet_address=${user.wallet_address}&asset_type=${category}${excludeIds ? `&exclude_ids=${excludeIds}` : ''}`;
+      // Fetch multiple predictions (we'll fetch 6 for a nice grid)
+      const predictionPromises = [];
+      for (let i = 0; i < 6; i++) {
+        predictionPromises.push(
+          fetch(`/api/predictions/next?user_wallet_address=${user.wallet_address}&asset_type=${category}`)
+            .then(res => res.json())
+        );
+      }
       
-      const response = await fetch(url);
-      const data = await response.json();
-
-      if (data.success) {
-        const newPrediction = data.data.prediction;
-        
-        // If no prediction found and we have skipped some, reset and try again
-        if (!newPrediction && idsToExclude.length > 0) {
-          setSkippedIds([]); // Reset skipped list
-          // Fetch again without exclusions
-          const resetUrl = `/api/predictions/next?user_wallet_address=${user.wallet_address}&asset_type=${category}`;
-          const resetResponse = await fetch(resetUrl);
-          const resetData = await resetResponse.json();
-          
-          if (resetData.success) {
-            setPrediction(resetData.data.prediction);
-          } else {
-            setError(resetData.error || "No predictions available");
-          }
-        } else {
-          setPrediction(newPrediction);
-        }
-      } else {
-        setError(data.error || "Failed to fetch prediction");
+      const results = await Promise.all(predictionPromises);
+      const validPredictions = results
+        .filter(data => data.success && data.data?.prediction)
+        .map(data => data.data.prediction);
+      
+      // Remove duplicates by ID
+      const uniquePredictions = Array.from(
+        new Map(validPredictions.map(p => [p.id, p])).values()
+      );
+      
+      setPredictions(uniquePredictions);
+      
+      if (uniquePredictions.length === 0) {
+        setError("No predictions available");
       }
     } catch (err) {
-      console.error("Error fetching prediction:", err);
-      setError("Failed to load prediction");
+      console.error("Error fetching predictions:", err);
+      setError("Failed to load predictions");
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // Load prediction on mount or category change
+  // Load predictions on mount or category change
   useEffect(() => {
     if (user) {
-      setIsLoading(true); // Show loading only on initial load or category change
-      setSkippedIds([]); // Reset skipped IDs when category changes
-      fetchNextPrediction().finally(() => setIsLoading(false));
+      fetchPredictions();
     }
   }, [user, category]);
 
-  // Reset betting closed state and submitting when prediction changes
-  useEffect(() => {
-    if (prediction) {
-      const now = new Date().getTime();
-      const bettingCloseTime = prediction.betting_close ? new Date(prediction.betting_close).getTime() : 0;
-      setBettingClosed(bettingCloseTime > 0 && now >= bettingCloseTime);
-      setIsSubmitting(false); // Reset submitting state for new prediction
-    }
-  }, [prediction?.id]);
+  // Helper function to check if betting is closed
+  const isBettingClosed = (prediction: Prediction) => {
+    if (!prediction.betting_close) return false;
+    const now = new Date().getTime();
+    const bettingCloseTime = new Date(prediction.betting_close).getTime();
+    return now >= bettingCloseTime;
+  };
 
   // Countdown timer for expiry
   useEffect(() => {
@@ -178,116 +160,12 @@ export default function PredictClient() {
     return () => clearInterval(interval);
   }, [prediction]);
 
-  // Handle skip - add to skipped list and move to next prediction
-  const handleSkip = () => {
-    if (prediction) {
-      // Check if already in skipped list to prevent duplicates
-      const currentId = prediction.id;
-      setSkippedIds(prev => {
-        if (prev.includes(currentId)) {
-          return prev; // Already skipped, don't add again
-        }
-        const newSkippedIds = [...prev, currentId];
-        // Pass the updated IDs directly to avoid stale closure
-        fetchNextPrediction(newSkippedIds);
-        return newSkippedIds;
-      });
-    }
-    setSelectedPosition(null);
-  };
+  // Handle stake submission
+  const handleStake = async () => {
+    if (!user || !prediction || !selectedPosition) return;
 
-  // Swipe gesture handlers
-  const handleTouchStart = (e: React.TouchEvent) => {
-    const touch = e.touches[0];
-    setTouchStart({ x: touch.clientX, y: touch.clientY });
-    setTouchCurrent({ x: touch.clientX, y: touch.clientY });
-    setIsSwiping(true);
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!touchStart) return;
-    const touch = e.touches[0];
-    setTouchCurrent({ x: touch.clientX, y: touch.clientY });
-  };
-
-  const handleTouchEnd = () => {
-    if (!touchStart || !touchCurrent || isSubmitting) {
-      setTouchStart(null);
-      setTouchCurrent(null);
-      setIsSwiping(false);
-      return;
-    }
-
-    const deltaX = touchCurrent.x - touchStart.x;
-    const deltaY = touchCurrent.y - touchStart.y;
-    const absDeltaX = Math.abs(deltaX);
-    const absDeltaY = Math.abs(deltaY);
-
-    // Swipe right for YES (threshold: 100px)
-    if (deltaX > 100 && absDeltaX > absDeltaY) {
-      handleStake("YES");
-    }
-    // Swipe left for NO (threshold: 100px)
-    else if (deltaX < -100 && absDeltaX > absDeltaY) {
-      handleStake("NO");
-    }
-    // Swipe up for SKIP (threshold: 150px) - Only trigger if dominant vertical movement
-    else if (deltaY < -150 && absDeltaY > absDeltaX) {
-      handleSkip();
-    }
-
-    setTouchStart(null);
-    setTouchCurrent(null);
-    setIsSwiping(false);
-  };
-
-  // Calculate swipe transform and rotation
-  const getSwipeStyle = () => {
-    if (!touchStart || !touchCurrent || !isSwiping) {
-      return {};
-    }
-
-    const deltaX = touchCurrent.x - touchStart.x;
-    const deltaY = touchCurrent.y - touchStart.y;
-    const absDeltaX = Math.abs(deltaX);
-    const absDeltaY = Math.abs(deltaY);
-    
-    // Only apply transform for horizontal swipes or significant vertical swipes (up)
-    // Don't transform for small vertical movements (normal scrolling down)
-    if (absDeltaX > absDeltaY || deltaY < -50) {
-      const rotation = deltaX / 20; // Rotation based on horizontal movement
-      return {
-        transform: `translate(${deltaX}px, ${deltaY}px) rotate(${rotation}deg)`,
-        transition: 'none',
-      };
-    }
-    
-    return {};
-  };
-
-  // Get overlay opacity based on swipe direction
-  const getOverlayOpacity = () => {
-    if (!touchStart || !touchCurrent || !isSwiping) return 0;
-
-    const deltaX = touchCurrent.x - touchStart.x;
-    const deltaY = touchCurrent.y - touchStart.y;
-    const absDeltaX = Math.abs(deltaX);
-    const absDeltaY = Math.abs(deltaY);
-
-    if (absDeltaX > absDeltaY) {
-      return Math.min(absDeltaX / 200, 0.8);
-    } else {
-      return Math.min(absDeltaY / 200, 0.8);
-    }
-  };
-
-  // Handle stake submission with position parameter
-  const handleStake = async (position: "YES" | "NO") => {
-    if (!user || !prediction || isSubmitting) return;
-
-    setIsSubmitting(true);
+    setIsLoading(true);
     setError(null);
-    setSelectedPosition(position);
 
     try {
       const response = await fetch("/api/predictions/stake", {
@@ -296,25 +174,26 @@ export default function PredictClient() {
         body: JSON.stringify({
           wallet_address: user.wallet_address,
           prediction_id: prediction.id,
-          position: position,
-          stake_credits: stakeAmount,
+          position: selectedPosition,
+          stake_credits: selectedPosition === "SKIP" ? 0 : stakeAmount,
         }),
       });
 
       const data = await response.json();
 
       if (data.success) {
+        setShowStakeModal(false);
         setSelectedPosition(null);
         fetchNextPrediction();
         refetch();
       } else {
         setError(data.error || "Failed to submit stake");
-        setIsSubmitting(false);
       }
     } catch (err) {
       console.error("Error staking:", err);
       setError("Failed to submit stake");
-      setIsSubmitting(false);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -353,10 +232,9 @@ export default function PredictClient() {
               </div>
             </div>
             
-            {/* Filters and Stake Amount */}
-            <div className="p-4 space-y-4">
-              {/* Category Filters */}
-              <div className="flex items-center gap-2 flex-wrap">
+            {/* Compact Filters */}
+            <div className="p-4">
+              <div className="flex items-center gap-2">
                 <span className="text-gray-500 text-xs font-mono uppercase mr-2">Filter:</span>
                 <div className="flex gap-2">
                   {[
@@ -377,38 +255,6 @@ export default function PredictClient() {
                       <span className="hidden sm:inline">{cat.label}</span>
                     </button>
                   ))}
-                </div>
-              </div>
-
-              {/* Stake Amount Slider */}
-              <div className="bg-void-graphite/50 border border-grail/20 rounded-lg p-3 sm:p-4">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-                  {/* Label and Value */}
-                  <div className="flex items-center justify-between sm:justify-start gap-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-1 h-1 rounded-full bg-auric"></div>
-                      <label className="text-xs font-mono text-gray-500 uppercase whitespace-nowrap">Default_Stake</label>
-                    </div>
-                    <div className="flex items-center gap-2 bg-auric/10 px-3 py-1.5 rounded-lg border border-auric/30">
-                      <span className="text-auric text-xl sm:text-2xl font-bold font-mono tabular-nums">{stakeAmount}</span>
-                      <span className="text-xs font-mono text-gray-400">USDC</span>
-                    </div>
-                  </div>
-
-                  {/* Slider */}
-                  <div className="flex-1 py-2 sm:py-0">
-                    <input
-                      type="range"
-                      min="1"
-                      max={user?.real_credits_balance || 100}
-                      value={stakeAmount}
-                      onChange={(e) => setStakeAmount(Number(e.target.value))}
-                      className="w-full h-3 sm:h-2 bg-void-graphite rounded-lg appearance-none cursor-pointer slider-thumb"
-                      style={{
-                        background: `linear-gradient(to right, rgb(125, 44, 255) 0%, rgb(125, 44, 255) ${((stakeAmount - 1) / ((user?.real_credits_balance || 100) - 1)) * 100}%, rgb(31, 41, 55) ${((stakeAmount - 1) / ((user?.real_credits_balance || 100) - 1)) * 100}%, rgb(31, 41, 55) 100%)`
-                      }}
-                    />
-                  </div>
                 </div>
               </div>
             </div>
@@ -447,64 +293,8 @@ export default function PredictClient() {
           <div className="fade-in">
             {/* Desktop: Multi-grid view, Mobile/Tablet: Single card */}
             <div className="lg:grid lg:grid-cols-2 lg:gap-4">
-              {/* Swipeable Container - wraps both cards on mobile */}
-              <div 
-                className="lg:contents relative"
-                style={getSwipeStyle()}
-                onTouchStart={handleTouchStart}
-                onTouchMove={handleTouchMove}
-                onTouchEnd={handleTouchEnd}
-              >
-                {/* Swipe Overlays - Mobile Only - covers both cards */}
-                {isSwiping && touchStart && touchCurrent && (
-                  <>
-                    {/* YES Overlay (Swipe Right) */}
-                    {touchCurrent.x > touchStart.x && Math.abs(touchCurrent.x - touchStart.x) > Math.abs(touchCurrent.y - touchStart.y) && (
-                      <div 
-                        className="fixed inset-0 bg-profit/40 backdrop-blur-sm z-50 flex items-center justify-center lg:hidden pointer-events-none"
-                        style={{ opacity: getOverlayOpacity() }}
-                      >
-                        <div className="text-white text-6xl font-black font-mono transform rotate-12">
-                          YES
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* NO Overlay (Swipe Left) */}
-                    {touchCurrent.x < touchStart.x && Math.abs(touchCurrent.x - touchStart.x) > Math.abs(touchCurrent.y - touchStart.y) && (
-                      <div 
-                        className="fixed inset-0 bg-loss/40 backdrop-blur-sm z-50 flex items-center justify-center lg:hidden pointer-events-none"
-                        style={{ opacity: getOverlayOpacity() }}
-                      >
-                        <div className="text-white text-6xl font-black font-mono transform -rotate-12">
-                          NO
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* SKIP Overlay (Swipe Up) */}
-                    {(() => {
-                      const deltaY = touchCurrent.y - touchStart.y;
-                      const deltaX = touchCurrent.x - touchStart.x;
-                      const absDeltaY = Math.abs(deltaY);
-                      const absDeltaX = Math.abs(deltaX);
-                      
-                      return deltaY < -50 && absDeltaY > absDeltaX && (
-                        <div 
-                          className="fixed inset-0 bg-gray-500/40 backdrop-blur-sm z-50 flex items-center justify-center lg:hidden pointer-events-none"
-                          style={{ opacity: getOverlayOpacity() }}
-                        >
-                          <div className="text-white text-6xl font-black font-mono">
-                            SKIP
-                          </div>
-                        </div>
-                      );
-                    })()}
-                  </>
-                )}
-                
-                {/* Main Prediction Card */}
-                <div className="bg-void-black border border-grail/30 rounded-lg overflow-hidden shadow-xl mb-4 lg:mb-0">
+              {/* Main Prediction Card */}
+              <div className="bg-void-black border border-grail/30 rounded-lg overflow-hidden shadow-xl mb-4 lg:mb-0">
                 {/* Terminal Title Bar */}
                 <div className="bg-gradient-to-r from-void-graphite to-void-graphite/80 border-b border-grail/30 px-4 py-2 flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -630,39 +420,39 @@ export default function PredictClient() {
                 <div className="p-4">
                   <div className="grid grid-cols-3 gap-3">
                     <button
-                      onClick={() => handleStake("YES")}
-                      disabled={bettingClosed || isSubmitting}
-                      className="group relative bg-gradient-to-br from-profit to-profit/80 hover:from-profit/90 hover:to-profit/70 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-6 rounded-lg transition-all hover:scale-[1.02] border border-profit/50 shadow-lg shadow-profit/20 font-mono overflow-hidden"
+                      onClick={() => {
+                        setSelectedPosition("YES");
+                        setShowStakeModal(true);
+                      }}
+                      disabled={bettingClosed || isLoading}
+                      className="bg-gradient-to-br from-profit to-profit/80 hover:from-profit/90 hover:to-profit/70 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-6 rounded-lg transition-all hover:scale-105 border border-profit/50 shadow-lg shadow-profit/20 font-mono"
                     >
-                      <div className="absolute inset-0 bg-profit/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                      <div className="relative flex flex-col items-center justify-center gap-1">
-                        <div className="w-2 h-2 rounded-full bg-white/80 group-hover:bg-white transition-colors"></div>
-                        <div className="text-base tracking-wider">{isSubmitting && selectedPosition === "YES" ? "..." : "YES"}</div>
-                      </div>
+                      <div className="text-2xl mb-1">✓</div>
+                      <div className="text-sm">YES</div>
                     </button>
                     
                     <button
-                      onClick={handleSkip}
-                      disabled={isSubmitting}
-                      className="group relative bg-void-graphite hover:bg-void-graphite/60 disabled:opacity-50 disabled:cursor-not-allowed text-gray-400 hover:text-white font-bold py-6 rounded-lg transition-all border border-grail/20 hover:border-grail/40 font-mono overflow-hidden"
+                      onClick={() => {
+                        setSelectedPosition("SKIP");
+                        handleStake();
+                      }}
+                      disabled={isLoading}
+                      className="bg-void-graphite hover:bg-void-graphite/60 disabled:opacity-50 disabled:cursor-not-allowed text-gray-400 hover:text-white font-bold py-6 rounded-lg transition-all border border-grail/20 font-mono"
                     >
-                      <div className="absolute inset-0 bg-grail/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                      <div className="relative flex flex-col items-center justify-center gap-1">
-                        <div className="w-2 h-2 rounded-full bg-gray-500 group-hover:bg-gray-300 transition-colors"></div>
-                        <div className="text-base tracking-wider">SKIP</div>
-                      </div>
+                      <div className="text-2xl mb-1">→</div>
+                      <div className="text-sm">SKIP</div>
                     </button>
                     
                     <button
-                      onClick={() => handleStake("NO")}
-                      disabled={bettingClosed || isSubmitting}
-                      className="group relative bg-gradient-to-br from-loss to-loss/80 hover:from-loss/90 hover:to-loss/70 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-6 rounded-lg transition-all hover:scale-[1.02] border border-loss/50 shadow-lg shadow-loss/20 font-mono overflow-hidden"
+                      onClick={() => {
+                        setSelectedPosition("NO");
+                        setShowStakeModal(true);
+                      }}
+                      disabled={bettingClosed || isLoading}
+                      className="bg-gradient-to-br from-loss to-loss/80 hover:from-loss/90 hover:to-loss/70 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-6 rounded-lg transition-all hover:scale-105 border border-loss/50 shadow-lg shadow-loss/20 font-mono"
                     >
-                      <div className="absolute inset-0 bg-loss/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                      <div className="relative flex flex-col items-center justify-center gap-1">
-                        <div className="w-2 h-2 rounded-full bg-white/80 group-hover:bg-white transition-colors"></div>
-                        <div className="text-base tracking-wider">{isSubmitting && selectedPosition === "NO" ? "..." : "NO"}</div>
-                      </div>
+                      <div className="text-2xl mb-1">✗</div>
+                      <div className="text-sm">NO</div>
                     </button>
                   </div>
                 </div>
@@ -685,7 +475,70 @@ export default function PredictClient() {
                   </div>
                 </div>
               </div>
-              </div> {/* Close swipeable container */}
+            </div>
+          </div>
+        )}
+
+        {/* Stake Modal */}
+        {showStakeModal && selectedPosition && selectedPosition !== "SKIP" && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-6">
+            <div className="grail-glass rounded-2xl p-8 max-w-md w-full">
+              <h3 className="text-2xl font-bold mb-6 text-center">
+                Stake on <span className={selectedPosition === "YES" ? "profit-text" : "loss-text"}>{selectedPosition}</span>
+              </h3>
+
+              <div className="mb-6">
+                <label className="block text-sm text-gray-400 mb-2">Stake Amount</label>
+                <input
+                  type="number"
+                  min="1"
+                  max={user?.real_credits_balance || 0}
+                  value={stakeAmount}
+                  onChange={(e) => setStakeAmount(Number(e.target.value))}
+                  className="w-full bg-void-graphite border border-grail/30 rounded-xl px-4 py-3 text-white text-lg font-bold focus:outline-none focus:border-grail"
+                />
+                <div className="flex justify-between mt-2 text-xs">
+                  <span className="text-gray-500">Min: 1</span>
+                  <span className="text-gray-400">Available: <span className="text-auric font-bold">{user?.real_credits_balance}</span></span>
+                </div>
+              </div>
+
+              {/* Quick Amount Buttons */}
+              <div className="grid grid-cols-4 gap-2 mb-6">
+                {[10, 25, 50, 100].map((amount) => (
+                  <button
+                    key={amount}
+                    onClick={() => setStakeAmount(amount)}
+                    disabled={amount > (user?.real_credits_balance || 0)}
+                    className="bg-void-graphite hover:bg-grail/20 disabled:opacity-30 disabled:cursor-not-allowed text-white py-2 rounded-lg text-sm font-bold transition-all"
+                  >
+                    {amount}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowStakeModal(false);
+                    setSelectedPosition(null);
+                  }}
+                  className="flex-1 bg-void-graphite hover:bg-void-graphite/80 text-white font-bold py-4 rounded-xl transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleStake}
+                  disabled={isLoading || stakeAmount < 1 || stakeAmount > (user?.real_credits_balance || 0)}
+                  className={`
+                    flex-1 font-bold py-4 rounded-xl transition-all
+                    ${selectedPosition === "YES" ? "bg-profit hover:bg-profit/80" : "bg-loss hover:bg-loss/80"}
+                    text-white disabled:opacity-50 disabled:cursor-not-allowed
+                  `}
+                >
+                  {isLoading ? "Confirming..." : `Confirm ${selectedPosition}`}
+                </button>
+              </div>
             </div>
           </div>
         )}

@@ -92,7 +92,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(200).json({
         success: true,
         data: {
-          new_balance: user.credits_balance,
+          new_balance: user.real_credits_balance,
           updated_sentiment_yes: prediction.sentiment_yes,
           updated_sentiment_no: prediction.sentiment_no,
         },
@@ -105,7 +105,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Check user has enough credits
-    if (user.credits_balance < stake_credits) {
+    if (user.real_credits_balance < stake_credits) {
       return res.status(400).json({ success: false, error: "Insufficient credits" });
     }
 
@@ -194,12 +194,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // 4. Deduct credits from user
-    const newBalance = user.credits_balance - stake_credits;
+    const newBalance = user.real_credits_balance - stake_credits;
 
     const { error: userUpdateError } = await supabase
       .from("users")
       .update({
-        credits_balance: newBalance,
+        real_credits_balance: newBalance,
         updated_at: new Date().toISOString(),
       })
       .eq("id", user.id);

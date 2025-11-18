@@ -1,214 +1,404 @@
 // agents/agent-standardizer.ts
+/**
+ * Agent-2: Market-aware prediction standardizer
+ * 
+ * FIXES IMPLEMENTED:
+ * ✅ LLM-based sentiment classification (no more keyword-only)
+ * ✅ Correct reference_type for Agent-3 resolution
+ * ✅ created_price for crypto predictions
+ * ✅ Market-close questions only when valid
+ * ✅ Holiday-aware question generation
+ * ✅ Direction-resolution alignment
+ * ✅ One card per raw input
+ * ✅ No hallucinated numbers
+ */
+
 import "dotenv/config";
 import { createClient } from "@supabase/supabase-js";
 import Groq from "groq-sdk";
 import { DateTime } from "luxon";
+import {
+  stockExpiryDecision,
+  cryptoExpiryDecision,
+} from "./market-hours/index";
 
 if (!process.env.GROQ_API_KEY) throw new Error("Missing GROQ_API_KEY");
-if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_SERVICE_KEY)
   throw new Error("Missing Supabase env vars");
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.NEXT_PUBLIC_SUPABASE_SERVICE_KEY!
 );
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
-// ---------- Helpers ----------
-function isProbablyCrypto(ticker: string) {
-  // crude heuristic: crypto tickers often include USD or USDT or are short uppercase
-  const t = (ticker || "").toUpperCase();
-  return t.endsWith("USDT") || t.endsWith("USD") || t.length <= 5 && /[A-Z]/.test(t);
-}
+type Direction = "up" | "down" | "neutral";
+type SentimentStrength = "strong" | "weak" | "neutral";
+type ReferenceType = "open" | "previous_close" | "current";
 
-function getExpiryForStockNowUSClose() {
-  // US market close 16:00 America/New_York -> convert to UTC ISO
-  const nowNY = DateTime.now().setZone("America/New_York");
-  let closeToday = nowNY.set({ hour: 16, minute: 0, second: 0, millisecond: 0 });
-  if (nowNY >= closeToday) {
-    // if already past close, set to next calendar day close (simple approach)
-    closeToday = closeToday.plus({ days: 1 });
-  }
-  return closeToday.toUTC().toISO();
-}
+// ---------- LLM Sentiment Classifier ----------
 
-function getExpiryForCrypto() {
-  return DateTime.utc().plus({ hours: 6 }).toISO();
-}
+/**
+ * Use LLM to classify sentiment from raw text
+ * Replaces keyword-based detection for better accuracy
+ */
+async function classifySentiment(rawText: string, ticker: string): Promise<{
+  direction: Direction;
+  strength: SentimentStrength;
+}> {
+  const prompt = `You are a financial sentiment classifier. Analyze the following news text and classify the sentiment for ${ticker}.
 
-// ---------- LLM prompt builder ----------
-function buildNormalizationPrompt(rawText: string, ticker: string) {
-  return `
-You are a precise financial prediction normalizer.  
-You will convert the RAW text into a short list (2-4) of short-term, resolvable YES/NO prediction cards tied to the provided ticker.
-
-RAW TEXT:
-"""${rawText}"""
+NEWS TEXT:
+"""
+${rawText}
+"""
 
 TICKER: ${ticker}
 
-Output STRICT JSON ONLY with THIS schema:
+Classify the sentiment:
+- direction: "up" (bullish/positive), "down" (bearish/negative), or "neutral" (mixed/unclear)
+- strength: "strong" (very clear sentiment), "weak" (mild sentiment), or "neutral" (ambiguous)
 
+CRITICAL RULES:
+- Never guess price targets or numbers
+- Never hallucinate information
+- If ambiguous, return "neutral"
+- Output ONLY valid JSON
+
+Output format:
 {
-  "cards": [
-    {
-      "text": "Will ${ticker} ... ?",
-      "type": "YES_NO",
-      "notes": "optional short note (<=30 chars)"
+  "direction": "up" | "down" | "neutral",
+  "strength": "strong" | "weak" | "neutral"
+}`;
+
+  try {
+    const completion = await groq.chat.completions.create({
+      model: "llama-3.1-8b-instant",
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.1,
+      max_tokens: 100,
+    });
+
+    const content = completion.choices[0]?.message?.content?.trim();
+    if (!content) {
+      console.log("⚠️ LLM returned empty response, defaulting to neutral");
+      return { direction: "neutral", strength: "neutral" };
     }
-  ]
+
+    // Parse JSON response
+    const parsed = JSON.parse(content);
+    
+    // Validate response
+    const validDirections: Direction[] = ["up", "down", "neutral"];
+    const validStrengths: SentimentStrength[] = ["strong", "weak", "neutral"];
+    
+    const direction = validDirections.includes(parsed.direction) ? parsed.direction : "neutral";
+    const strength = validStrengths.includes(parsed.strength) ? parsed.strength : "neutral";
+
+    return { direction, strength };
+  } catch (error) {
+    console.error("❌ LLM sentiment classification failed:", error);
+    return { direction: "neutral", strength: "neutral" };
+  }
 }
 
-Rules:
-- Each card must be measurable using price data (open/close/percent change) at expiry.
-- Prefer same-day short-term cards (intraday/day close). No multi-week/month items.
-- Use 2 to 4 cards.
-- Do not include probabilities or long explanations.
-- Output valid JSON only.
-`;
+// ---------- Fetch Current Price for Crypto ----------
+
+/**
+ * Fetch current price from Binance for crypto predictions
+ * Required for reference_type = "current"
+ */
+async function fetchCurrentPrice(ticker: string): Promise<number | null> {
+  try {
+    // Ensure ticker ends with USDT for Binance API
+    const symbol = ticker.toUpperCase().endsWith("USDT") 
+      ? ticker.toUpperCase() 
+      : `${ticker.toUpperCase()}USDT`;
+
+    const response = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`);
+    
+    if (!response.ok) {
+      console.error(`❌ Binance API error for ${symbol}: ${response.status}`);
+      return null;
+    }
+
+    const data = await response.json();
+    const price = parseFloat(data.price);
+
+    if (isNaN(price) || price <= 0) {
+      console.error(`❌ Invalid price from Binance for ${symbol}: ${data.price}`);
+      return null;
+    }
+
+    return price;
+  } catch (error) {
+    console.error(`❌ Failed to fetch price for ${ticker}:`, error);
+    return null;
+  }
 }
 
-// ---------- Core processing for a single raw row ----------
+// ---------- Question Generation ----------
+
+/**
+ * Generate prediction question based on asset type, question type, and direction
+ * STRICT: No hallucinated numbers, only valid YES/NO questions
+ */
+function generateQuestion(
+  ticker: string,
+  assetType: string,
+  questionType: "open" | "close" | "window",
+  direction: Direction
+): string {
+  if (assetType === "stock") {
+    if (questionType === "close") {
+      // Market open, expiry at close - compare close vs open
+      if (direction === "up") {
+        return `Will ${ticker} close green today?`;
+      } else if (direction === "down") {
+        return `Will ${ticker} close red today?`;
+      } else {
+        return `Will ${ticker} close higher than open today?`;
+      }
+    } else {
+      // questionType === "open"
+      // Market closed or near close - compare next open vs previous close
+      if (direction === "up") {
+        return `Will ${ticker} open higher at next market open?`;
+      } else if (direction === "down") {
+        return `Will ${ticker} open lower at next market open?`;
+      } else {
+        return `Will ${ticker} gap up at next open?`;
+      }
+    }
+  } else {
+    // Crypto - window-based, compare expiry vs current
+    if (direction === "up") {
+      return `Will ${ticker} be higher at expiry?`;
+    } else if (direction === "down") {
+      return `Will ${ticker} be lower at expiry?`;
+    } else {
+      return `Will ${ticker} move up by expiry?`;
+    }
+  }
+}
+
+/**
+ * Determine reference_type based on asset type and question type
+ * CRITICAL: Agent-3 uses this for resolution
+ */
+function getReferenceType(
+  assetType: string,
+  questionType: "open" | "close" | "window"
+): ReferenceType {
+  if (assetType === "stock") {
+    if (questionType === "close") {
+      // Compare close vs open of same day
+      return "open";
+    } else {
+      // questionType === "open"
+      // Compare next open vs previous close
+      return "previous_close";
+    }
+  } else {
+    // Crypto - compare expiry vs price at creation
+    return "current";
+  }
+}
+
+// ---------- Core Processing ----------
+
 async function processRow(row: {
   id: string;
   raw_text: string;
   ticker: string;
-  asset_type?: string | null;
+  asset_type: string;
   source_name?: string | null;
   source_url?: string | null;
 }) {
   const { id, raw_text, ticker, asset_type, source_name, source_url } = row;
 
-  console.log(`Processing raw id=${id} ticker=${ticker}`);
+  console.log(`\n🔵 Processing raw id=${id} ticker=${ticker} asset_type=${asset_type}`);
 
-  // Build prompt
-  const prompt = buildNormalizationPrompt(raw_text, ticker);
+  // Validate required fields (guaranteed by Agent-1)
+  if (!ticker || !raw_text || !asset_type) {
+    console.log(`❌ SKIPPED id=${id} - missing required fields`);
+    return;
+  }
 
-  // Call Groq LLM
-  let llmResponse: any = null;
-  try {
-    const completion = await groq.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.2,
-      response_format: { type: "json_object" },
-      // set a reasonable max tokens if supported in config (sdk-dependent)
-    });
+  // Normalize asset_type
+  const normalizedAssetType = asset_type.toLowerCase();
+  if (normalizedAssetType !== "crypto" && normalizedAssetType !== "stock") {
+    console.log(`❌ SKIPPED id=${id} - invalid asset_type "${asset_type}"`);
+    return;
+  }
 
-    // groq SDK returns content under completion.choices[0].message.content
-    const content = completion.choices?.[0]?.message?.content;
-    if (!content) {
-      throw new Error("Empty LLM response");
+  // Step 1: LLM Sentiment Classification
+  console.log(`🤖 Classifying sentiment with LLM...`);
+  const sentiment = await classifySentiment(raw_text, ticker);
+  console.log(`📊 Sentiment: direction=${sentiment.direction} strength=${sentiment.strength}`);
+
+  // Step 2: Compute expiry, betting_close, and question type
+  type DateTimeType = ReturnType<typeof DateTime.utc>;
+  let expiry: DateTimeType;
+  let bettingClose: DateTimeType;
+  let questionType: "open" | "close" | "window";
+
+  const now = DateTime.utc();
+
+  if (normalizedAssetType === "stock") {
+    const decision = stockExpiryDecision(now);
+    expiry = decision.expiry;
+    bettingClose = decision.bettingClose;
+    questionType = decision.questionType;
+
+    console.log(`📈 Stock decision: questionType=${questionType} expiry=${expiry.toISO()} betting_close=${bettingClose.toISO()}`);
+  } else {
+    // Crypto
+    const decision = cryptoExpiryDecision(sentiment.strength, now);
+    expiry = decision.expiry;
+    bettingClose = decision.bettingClose;
+    questionType = "window";
+
+    console.log(`₿ Crypto decision: window=${decision.windowHours}h expiry=${expiry.toISO()} betting_close=${bettingClose.toISO()}`);
+  }
+
+  // Step 3: Safety check - betting_close must be in future
+  if (bettingClose <= now) {
+    console.log(`❌ SKIPPED id=${id} - betting_close ${bettingClose.toISO()} is in the past`);
+    return;
+  }
+
+  // Step 4: Determine reference_type for Agent-3
+  const referenceType = getReferenceType(normalizedAssetType, questionType);
+  console.log(`🎯 Reference type: ${referenceType}`);
+
+  // Step 5: Fetch created_price for crypto predictions
+  let createdPrice: number | null = null;
+  if (normalizedAssetType === "crypto" && referenceType === "current") {
+    createdPrice = await fetchCurrentPrice(ticker);
+    if (createdPrice === null) {
+      console.log(`❌ SKIPPED id=${id} - failed to fetch current price for crypto`);
+      return;
     }
-    llmResponse = content; // already a JS object because response_format json_object
-  } catch (err) {
-    console.error("LLM error for id=", id, err);
-    // fallback: create a simple card from raw text
-    llmResponse = { cards: [`Will ${ticker} close higher today?`].map((t) => ({ text: t, type: "YES_NO" })) };
+    console.log(`💰 Created price: ${createdPrice}`);
   }
 
-  // Normalize llmResponse.cards to array of {text}
-  const cardsRaw: { text: string }[] = Array.isArray(llmResponse?.cards)
-    ? llmResponse.cards.map((c: any) => ({ text: c.text || String(c) }))
-    : [];
+  // Step 6: Generate prediction question
+  const predictionText = generateQuestion(ticker, normalizedAssetType, questionType, sentiment.direction);
+  console.log(`📝 Generated question: "${predictionText}"`);
 
-  // default fallback if weird output
-  if (cardsRaw.length === 0) {
-    cardsRaw.push({ text: `Will ${ticker} close higher today?` });
-  }
-
-  // Determine expiry per card (stock vs crypto)
-  // Use asset_type if available, otherwise fallback to heuristic
-  const normalizedAssetType = (asset_type || "").toLowerCase();
-  const isCrypto = normalizedAssetType === "crypto" || (normalizedAssetType !== "stock" && isProbablyCrypto(ticker));
-  const expiry = isCrypto ? getExpiryForCrypto() : getExpiryForStockNowUSClose();
-  const finalAssetType = normalizedAssetType === "crypto" || normalizedAssetType === "stock" ? normalizedAssetType : (isCrypto ? "crypto" : "stock");
-
-  // Insert each card into predictions table
-  for (const card of cardsRaw) {
-    try {
-      const insertRes = await supabase.from("predictions").insert({
-        prediction_text: card.text,
-        source_name: source_name || null,
-        source_category: "Analyst",
-        asset: ticker,
-        asset_type: finalAssetType,
-        raw_text: raw_text,
-        expiry_timestamp: expiry,
-        sentiment_yes: 0,
-        sentiment_no: 0,
-        status: "pending",
-      });
-
-      if (insertRes.error) {
-        console.error("Failed to insert prediction for id", id, insertRes.error);
-      } else {
-        console.log("Inserted prediction:", card.text);
-      }
-    } catch (err) {
-      console.error("Exception inserting prediction for id", id, err);
-    }
-  }
-
-  // Mark ai_raw_inputs row processed = TRUE
+  // Step 7: Insert prediction into database
   try {
-    const { error } = await supabase.from("ai_raw_inputs").update({ processed: true }).eq("id", id);
-    if (error) {
-      console.error("Failed to mark raw row processed id=", id, error);
+    const insertData: any = {
+      prediction_text: predictionText,
+      source_name: source_name || null,
+      source_category: "Analyst",
+      asset: ticker,
+      asset_type: normalizedAssetType,
+      direction: sentiment.direction,
+      reference_type: referenceType,
+      raw_text: raw_text,
+      expiry_timestamp: expiry.toISO(),
+      betting_close: bettingClose.toISO(),
+      sentiment_yes: 0,
+      sentiment_no: 0,
+      status: "pending",
+      prediction_hash: null,
+      resolution_report: null,
+    };
+
+    // Add created_price for crypto
+    if (createdPrice !== null) {
+      insertData.created_price = createdPrice;
+    }
+
+    const { data: insertedPrediction, error: insertError } = await supabase
+      .from("predictions")
+      .insert(insertData)
+      .select("id")
+      .single();
+
+    if (insertError) {
+      console.error(`❌ Failed to insert prediction for id=${id}:`, insertError);
+      return;
+    }
+
+    console.log(`✅ INSERTED predictionId=${insertedPrediction.id} ticker=${ticker} direction=${sentiment.direction} reference_type=${referenceType}`);
+
+    // Step 8: Mark ai_raw_inputs row as processed
+    const { error: updateError } = await supabase
+      .from("ai_raw_inputs")
+      .update({ processed: true })
+      .eq("id", id);
+
+    if (updateError) {
+      console.error(`⚠️ Failed to mark raw row processed id=${id}:`, updateError);
     } else {
-      console.log("Marked raw id processed:", id);
+      console.log(`✅ Marked raw id=${id} as processed`);
     }
   } catch (err) {
-    console.error("Error marking processed id=", id, err);
+    console.error(`❌ Exception processing id=${id}:`, err);
   }
 }
 
-// ---------- Public runner: process a set of ids OR fallback to all unprocessed ----------
+// ---------- Public Runner ----------
+
 export async function runAgent2ForIds(ids?: string[]) {
-  console.log("Agent-2 start. ids?", ids?.length ?? "none");
+  console.log("\n🚀 Agent-2 start. ids?", ids?.length ?? "none");
 
   let rows: any[] = [];
 
   if (Array.isArray(ids) && ids.length > 0) {
-    const { data, error } = await supabase.from("ai_raw_inputs").select("*").in("id", ids);
+    const { data, error } = await supabase
+      .from("ai_raw_inputs")
+      .select("*")
+      .in("id", ids);
+
     if (error) {
-      console.error("Failed to fetch ai_raw_inputs by ids", error);
+      console.error("❌ Failed to fetch ai_raw_inputs by ids", error);
       return;
     }
     rows = data || [];
   } else {
-    // fallback: process unprocessed rows (safe)
-    const { data, error } = await supabase.from("ai_raw_inputs").select("*").eq("processed", false).limit(20);
+    // Fallback: process unprocessed rows
+    const { data, error } = await supabase
+      .from("ai_raw_inputs")
+      .select("*")
+      .eq("processed", false)
+      .limit(20);
+
     if (error) {
-      console.error("Failed to fetch ai_raw_inputs", error);
+      console.error("❌ Failed to fetch ai_raw_inputs", error);
       return;
     }
     rows = data || [];
   }
 
   if (!rows.length) {
-    console.log("Nothing to process in Agent-2.");
+    console.log("ℹ️ Nothing to process in Agent-2.");
     return;
   }
+
+  console.log(`📋 Processing ${rows.length} rows...`);
 
   for (const row of rows) {
     try {
       await processRow(row);
     } catch (err) {
-      console.error("Error processing row id=", row.id, err);
+      console.error(`❌ Error processing row id=${row.id}:`, err);
     }
   }
 
-  console.log("Agent-2 done.");
+  console.log("\n✅ Agent-2 done.");
 }
 
 // Run as CLI if executed directly
 if (require.main === module) {
   (async () => {
-    await runAgent2ForIds(); // fallback -> process unprocessed rows
+    await runAgent2ForIds();
   })().catch((e) => {
-    console.error("Agent-2 fatal:", e);
+    console.error("❌ Agent-2 fatal:", e);
     process.exit(1);
   });
 }

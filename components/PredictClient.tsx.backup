@@ -1,0 +1,532 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useAccount } from "wagmi";
+import { useUser } from "@/lib/useUser";
+import WalletConnectButton from "@/components/WalletConnectButton";
+import WalletControl from "@/components/WalletControl";
+import Link from "next/link";
+
+interface Prediction {
+  id: number;
+  prediction_text: string;
+  asset: string;
+  asset_type?: string;
+  raw_text?: string;
+  expiry_timestamp: string;
+  sentiment_yes: number;
+  sentiment_no: number;
+}
+
+export default function PredictClient() {
+  const { address, isConnected } = useAccount();
+  const { user, isLoading: userLoading, refetch } = useUser();
+  const [prediction, setPrediction] = useState<Prediction | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showStakeModal, setShowStakeModal] = useState(false);
+  const [selectedPosition, setSelectedPosition] = useState<"YES" | "NO" | "SKIP" | null>(null);
+  const [stakeAmount, setStakeAmount] = useState(10);
+  const [category, setCategory] = useState<"all" | "stock" | "crypto">("all");
+  const [timeLeft, setTimeLeft] = useState("");
+
+  // Auto-refresh user data when wallet account changes
+  useEffect(() => {
+    if (isConnected && address) {
+      refetch();
+    }
+  }, [address, isConnected, refetch]);
+
+  // Fetch next prediction
+  const fetchNextPrediction = async () => {
+    if (!user) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/predictions/next?user_wallet_address=${user.wallet_address}&asset_type=${category}`);
+      const data = await response.json();
+
+      if (data.success) {
+        setPrediction(data.data.prediction);
+      } else {
+        setError(data.error || "Failed to fetch prediction");
+      }
+    } catch (err) {
+      console.error("Error fetching prediction:", err);
+      setError("Failed to load prediction");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Load prediction on mount or when category changes
+  useEffect(() => {
+    if (user) {
+      fetchNextPrediction();
+    }
+  }, [user, category]);
+
+  // Countdown timer
+  useEffect(() => {
+    if (!prediction?.expiry_timestamp) {
+      setTimeLeft("");
+      return;
+    }
+
+    const interval = setInterval(() => {
+      const now = new Date().getTime();
+      const expiry = new Date(prediction.expiry_timestamp).getTime();
+      const diff = Math.max(expiry - now, 0);
+
+      const minutes = Math.floor(diff / 60000);
+      const seconds = Math.floor((diff % 60000) / 1000);
+
+      setTimeLeft(`${minutes}:${seconds.toString().padStart(2, "0")}`);
+
+      if (diff <= 0) {
+        clearInterval(interval);
+        setTimeLeft("Expired");
+        // Auto-load next prediction after 2 seconds
+        setTimeout(() => {
+          fetchNextPrediction();
+        }, 2000);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [prediction]);
+
+  // Handle stake submission
+  const handleStake = async () => {
+    if (!user || !prediction || !selectedPosition) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/predictions/stake", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          wallet_address: user.wallet_address,
+          prediction_id: prediction.id,
+          position: selectedPosition,
+          stake_credits: selectedPosition === "SKIP" ? 0 : stakeAmount,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Close modal and load next prediction
+        setShowStakeModal(false);
+        setSelectedPosition(null);
+        fetchNextPrediction();
+      } else {
+        setError(data.error || "Failed to submit stake");
+      }
+    } catch (err) {
+      console.error("Error submitting stake:", err);
+      setError("Failed to submit stake");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handle Yes/No button click
+  const handlePositionClick = (position: "YES" | "NO") => {
+    setSelectedPosition(position);
+    setShowStakeModal(true);
+  };
+
+  // Handle Skip
+  const handleSkip = async () => {
+    if (!user || !prediction) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/predictions/stake", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          wallet_address: user.wallet_address,
+          prediction_id: prediction.id,
+          position: "SKIP",
+          stake_credits: 0,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        fetchNextPrediction();
+      } else {
+        setError(data.error || "Failed to skip");
+      }
+    } catch (err) {
+      console.error("Error skipping:", err);
+      setError("Failed to skip");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Calculate sentiment percentages
+  const totalVotes = prediction ? prediction.sentiment_yes + prediction.sentiment_no : 0;
+  const yesPercent = totalVotes > 0 ? Math.round((prediction!.sentiment_yes / totalVotes) * 100) : 50;
+  const noPercent = totalVotes > 0 ? Math.round((prediction!.sentiment_no / totalVotes) * 100) : 50;
+
+  return (
+    <div className="min-h-screen bg-obsidian text-white relative overflow-hidden">
+      {/* Terminal Grid Background */}
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(106,0,244,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(106,0,244,0.03)_1px,transparent_1px)] bg-[size:50px_50px] pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-br from-royal/10 via-transparent to-aurora/10 pointer-events-none" />
+      <div className="absolute top-1/4 right-1/4 w-[500px] h-[500px] bg-royal/5 rounded-full blur-3xl pointer-events-none animate-float" />
+      
+      {/* Scanline Effect */}
+      <div className="absolute inset-0 bg-[linear-gradient(transparent_50%,rgba(106,0,244,0.02)_50%)] bg-[length:100%_4px] pointer-events-none animate-pulse" />
+      
+      <div className="relative z-10">
+        {/* Top Terminal Bar */}
+        <div className="border-b border-royal/20 bg-obsidian-light/50 backdrop-blur-sm">
+          <div className="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-6">
+              <Link href="/" className="flex items-center gap-2 text-royal-light hover:text-royal transition-colors">
+                <span className="text-lg">←</span>
+                <span className="text-xs font-mono uppercase tracking-widest">RETURN</span>
+              </Link>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-success animate-pulse" />
+                <span className="text-xs font-mono text-gray-500 uppercase tracking-widest">SIGNAL.HUNT</span>
+              </div>
+            </div>
+            <WalletControl />
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <div className="max-w-6xl mx-auto px-6 py-8">
+          {/* Category Filter - Terminal Style */}
+          {isConnected && user && (
+            <div className="mb-8 border-l-4 border-royal pl-6">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-2 h-2 bg-royal rounded-full animate-pulse" />
+                <span className="text-xs font-mono text-gray-500 uppercase tracking-widest">FILTER.ASSET_TYPE</span>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setCategory("all")}
+                  className={`px-6 py-3 rounded-none font-heading font-bold transition-all border-2 ${
+                    category === "all"
+                      ? "bg-royal border-royal/50 text-white"
+                      : "bg-obsidian-light border-royal/20 text-gray-400 hover:border-royal/40"
+                  }`}
+                >
+                  <div className="text-xs font-mono mb-1">ALL</div>
+                  <div>🌐 Signals</div>
+                </button>
+                <button
+                  onClick={() => setCategory("stock")}
+                  className={`px-6 py-3 rounded-none font-heading font-bold transition-all border-2 ${
+                    category === "stock"
+                      ? "bg-royal border-royal/50 text-white"
+                      : "bg-obsidian-light border-royal/20 text-gray-400 hover:border-royal/40"
+                  }`}
+                >
+                  <div className="text-xs font-mono mb-1">STOCK</div>
+                  <div>📈 Equities</div>
+                </button>
+                <button
+                  onClick={() => setCategory("crypto")}
+                  className={`px-6 py-3 rounded-none font-heading font-bold transition-all border-2 ${
+                    category === "crypto"
+                      ? "bg-royal border-royal/50 text-white"
+                      : "bg-obsidian-light border-royal/20 text-gray-400 hover:border-royal/40"
+                  }`}
+                >
+                  <div className="text-xs font-mono mb-1">CRYPTO</div>
+                  <div>₿ Digital</div>
+                </button>
+              </div>
+            </div>
+          )}
+
+        {/* Error Message */}
+        {error && (
+          <div className="bg-alert/10 border border-alert text-alert-light p-4 rounded-xl mb-6 font-body">
+            ⚠️ {error}
+          </div>
+        )}
+
+        {/* Wallet Connection */}
+        {!isConnected && (
+          <div className="bg-obsidian-light border border-royal/20 rounded-xl p-8 text-center glow-royal">
+            <div className="text-4xl mb-4">🜁</div>
+            <p className="text-gray-300 mb-6 font-body">Connect your vault to access signals</p>
+            <WalletConnectButton />
+          </div>
+        )}
+
+        {/* Loading State */}
+        {isConnected && (userLoading || isLoading) && (
+          <div className="bg-obsidian-light border border-royal/20 rounded-xl p-8 text-center">
+            <div className="inline-block w-8 h-8 border-2 border-royal border-t-transparent rounded-full animate-spin mb-3" />
+            <p className="text-gray-300 font-body">Accessing prophecy...</p>
+          </div>
+        )}
+
+        {/* No Predictions Available */}
+        {isConnected && !userLoading && !isLoading && !prediction && (
+          <div className="bg-obsidian-light border border-aurora/30 rounded-xl p-8 text-center glow-aurora">
+            <p className="text-4xl mb-4">✨</p>
+            <p className="text-xl font-heading font-bold mb-2 text-aurora">All Signals Processed</p>
+            <p className="text-gray-400 mb-6 font-body">The Grail awaits new prophecies.</p>
+            <Link href="/" className="bg-gradient-to-r from-royal to-royal-dark hover:from-royal-light hover:to-royal text-white font-heading font-bold py-3 px-6 rounded-xl transition-all inline-block glow-royal">
+              Return to Command
+            </Link>
+          </div>
+        )}
+
+          {/* Prediction Card - Terminal Style */}
+          {isConnected && user && prediction && !isLoading && (
+            <>
+              <div className="bg-obsidian-light border border-royal/20 rounded-none p-10 shadow-2xl mb-8 relative overflow-hidden">
+                {/* Corner Accents */}
+                <div className="absolute top-0 left-0 w-3 h-3 border-t border-l border-royal/40" />
+                <div className="absolute top-0 right-0 w-3 h-3 border-t border-r border-royal/40" />
+                <div className="absolute bottom-0 left-0 w-3 h-3 border-b border-l border-royal/40" />
+                <div className="absolute bottom-0 right-0 w-3 h-3 border-b border-r border-royal/40" />
+                
+                {/* Header Section */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 pb-6 border-b border-royal/20">
+                  {/* Asset Info */}
+                  <div className="md:col-span-2">
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="w-1.5 h-1.5 bg-royal rounded-full animate-pulse" />
+                      <span className="text-xs font-mono text-gray-600 uppercase tracking-widest">TARGET.ASSET</span>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <span className="text-4xl font-heading font-bold text-white tracking-tight">
+                        {prediction.asset}
+                      </span>
+                      {prediction.asset_type && (
+                        <span className="bg-obsidian border border-cyber/30 text-cyber-light text-xs font-mono px-3 py-1.5 uppercase tracking-wider">
+                          {prediction.asset_type === "crypto" ? "CRYPTO" : "EQUITY"}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Countdown */}
+                  <div className="text-right">
+                    <div className="flex items-center justify-end gap-2 mb-4">
+                      <div className="w-1.5 h-1.5 bg-aurora rounded-full animate-pulse" />
+                      <span className="text-xs font-mono text-gray-600 uppercase tracking-widest">EXPIRY</span>
+                    </div>
+                    <div className="text-4xl font-heading font-bold text-aurora tracking-tight mb-1">
+                      {timeLeft || "Loading..."}
+                    </div>
+                    <div className="text-xs font-mono text-gray-700">
+                      {new Date(prediction.expiry_timestamp).toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Prediction Text - Intel Briefing Style */}
+                <div className="mb-8">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-1.5 h-1.5 bg-royal rounded-full animate-pulse" />
+                    <span className="text-xs font-mono text-gray-600 uppercase tracking-widest">SIGNAL.PREDICTION</span>
+                  </div>
+                  <p className="text-2xl font-heading font-bold leading-snug text-white">
+                    {prediction.prediction_text}
+                  </p>
+                </div>
+
+              {/* Raw Text / Source Insight */}
+              {prediction.raw_text && (
+                <div className="mb-6 bg-obsidian border border-cyber/30 p-4 rounded-lg">
+                  <h3 className="text-xs font-heading font-bold text-cyber uppercase tracking-wider mb-2 flex items-center gap-2">
+                    <span>�</span>
+                    <span>Intelligence Source</span>
+                  </h3>
+                  <p className="text-sm text-gray-300 leading-relaxed font-body">
+                    {prediction.raw_text}
+                  </p>
+                </div>
+              )}
+
+                {/* Sentiment Analysis */}
+                <div className="mb-8 bg-obsidian border border-royal/10 p-8 rounded-none">
+                  <div className="flex items-center gap-2 mb-6">
+                    <div className="w-1.5 h-1.5 bg-royal rounded-full animate-pulse" />
+                    <span className="text-xs font-mono text-gray-600 uppercase tracking-widest">MARKET.SENTIMENT</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4 mb-4">
+                    <div className="text-center">
+                      <div className="text-3xl font-heading font-bold text-success">{yesPercent}%</div>
+                      <div className="text-xs font-mono text-gray-500 mt-1">AFFIRM</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-heading font-bold text-gray-500">{totalVotes}</div>
+                      <div className="text-xs font-mono text-gray-600 mt-1">SIGNALS</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-3xl font-heading font-bold text-alert">{noPercent}%</div>
+                      <div className="text-xs font-mono text-gray-500 mt-1">DENY</div>
+                    </div>
+                  </div>
+                  <div className="h-2 bg-obsidian-light rounded-none overflow-hidden flex">
+                    <div
+                      className="bg-gradient-to-r from-success to-success-light transition-all duration-500"
+                      style={{ width: `${yesPercent}%` }}
+                    />
+                    <div
+                      className="bg-gradient-to-r from-alert-dark to-alert transition-all duration-500"
+                      style={{ width: `${noPercent}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Action Grid - Terminal Command Style */}
+                <div className="grid grid-cols-3 gap-4 mb-8">
+                  <button
+                    onClick={() => handlePositionClick("YES")}
+                    disabled={isLoading}
+                    className="group relative bg-success hover:bg-success-light disabled:bg-gray-800 border border-success/50 hover:border-success disabled:border-gray-700 text-white font-heading font-bold py-8 rounded-none transition-all overflow-hidden"
+                  >
+                    <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.05)_50%,transparent_75%)] bg-[length:250%_250%] group-hover:animate-shimmer" />
+                    <div className="relative z-10">
+                      <div className="text-xs font-mono text-success-light mb-3 uppercase tracking-widest">EXECUTE</div>
+                      <div className="text-4xl mb-2">↑</div>
+                      <div className="text-xl">AFFIRM</div>
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={handleSkip}
+                    disabled={isLoading}
+                    className="bg-obsidian-light border border-royal/20 hover:border-royal/40 disabled:border-gray-700 text-gray-400 hover:text-white font-heading font-bold py-8 rounded-none transition-all"
+                  >
+                    <div className="text-xs font-mono text-gray-600 mb-3 uppercase tracking-widest">SKIP</div>
+                    <div className="text-4xl mb-2">⇢</div>
+                    <div className="text-xl">PASS</div>
+                  </button>
+
+                  <button
+                    onClick={() => handlePositionClick("NO")}
+                    disabled={isLoading}
+                    className="group relative bg-alert hover:bg-alert-light disabled:bg-gray-800 border border-alert/50 hover:border-alert disabled:border-gray-700 text-white font-heading font-bold py-8 rounded-none transition-all overflow-hidden"
+                  >
+                    <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.05)_50%,transparent_75%)] bg-[length:250%_250%] group-hover:animate-shimmer" />
+                    <div className="relative z-10">
+                      <div className="text-xs font-mono text-alert-light mb-3 uppercase tracking-widest">EXECUTE</div>
+                      <div className="text-4xl mb-2">↓</div>
+                      <div className="text-xl">DENY</div>
+                    </div>
+                  </button>
+                </div>
+
+                {/* Vault Status Bar */}
+                <div className="bg-obsidian border border-aurora/20 p-6 rounded-none">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 bg-aurora rounded-full animate-pulse" />
+                      <span className="text-xs font-mono text-gray-600 uppercase tracking-widest">VAULT.STATUS</span>
+                    </div>
+                    <div className="flex items-baseline gap-3">
+                      <span className="text-3xl font-heading font-bold text-aurora tracking-tight">{user.real_credits_balance}</span>
+                      <span className="text-sm font-mono text-gray-600">MockUSDC</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Stake Modal */}
+          {showStakeModal && selectedPosition && (
+            <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+              <div className="bg-obsidian-light border-2 border-royal/50 rounded-none p-8 max-w-md w-full shadow-2xl relative overflow-hidden">
+                {/* Corner Accents */}
+                <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-royal" />
+                <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-royal" />
+                <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-royal" />
+                <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-royal" />
+                
+                <div className="relative z-10">
+                  <div className="flex items-center gap-2 mb-6">
+                    <div className="w-2 h-2 bg-royal rounded-full animate-pulse" />
+                    <h2 className="text-2xl font-heading font-bold text-white uppercase tracking-tight">
+                      COMMIT SIGNAL
+                    </h2>
+                  </div>
+                  
+                  <div className="mb-6 bg-obsidian border border-royal/20 p-4 rounded-none">
+                    <div className="text-xs font-mono text-gray-500 uppercase tracking-widest mb-2">POSITION</div>
+                    <div className={`text-2xl font-heading font-bold ${selectedPosition === "YES" ? "text-success" : "text-alert"}`}>
+                      {selectedPosition === "YES" ? "↑ AFFIRM" : "↓ DENY"}
+                    </div>
+                  </div>
+
+                  <div className="mb-6 bg-obsidian border border-aurora/20 p-4 rounded-none">
+                    <div className="text-xs font-mono text-gray-500 uppercase tracking-widest mb-2">VAULT BALANCE</div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-2xl font-heading font-bold text-aurora">{user?.real_credits_balance}</span>
+                      <span className="text-sm font-mono text-gray-500">MockUSDC</span>
+                    </div>
+                  </div>
+
+                  {/* Stake Options */}
+                  <div className="mb-6">
+                    <div className="text-xs font-mono text-gray-500 uppercase tracking-widest mb-3">SELECT AMOUNT</div>
+                    <div className="grid grid-cols-3 gap-3">
+                      {[10, 20, 50].map((amount) => (
+                        <button
+                          key={amount}
+                          onClick={() => setStakeAmount(amount)}
+                          disabled={user && user.real_credits_balance < amount}
+                          className={`py-4 rounded-none font-heading font-bold transition-all border-2 ${
+                            stakeAmount === amount
+                              ? "bg-royal border-royal/50 text-white"
+                              : "bg-obsidian border-royal/20 text-gray-400 hover:border-royal/40"
+                          } ${user && user.real_credits_balance < amount ? "opacity-30 cursor-not-allowed" : ""}`}
+                        >
+                          {amount}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Confirm/Cancel */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={() => {
+                        setShowStakeModal(false);
+                        setSelectedPosition(null);
+                      }}
+                      className="bg-obsidian border-2 border-royal/30 hover:border-royal/50 text-gray-300 font-heading font-bold py-4 rounded-none transition-all"
+                    >
+                      CANCEL
+                    </button>
+                    <button
+                      onClick={handleStake}
+                      disabled={isLoading || (user && user.real_credits_balance < stakeAmount)}
+                      className="bg-gradient-to-r from-royal to-royal-dark hover:from-royal-light hover:to-royal disabled:from-gray-700 disabled:to-gray-800 border-2 border-royal/50 text-white font-heading font-bold py-4 rounded-none transition-all"
+                    >
+                      EXECUTE
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

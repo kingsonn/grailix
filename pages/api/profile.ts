@@ -48,11 +48,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(500).json({ success: false, error: "Database error" });
     }
 
-    // User doesn't exist - create new user with initial credits
+    // User doesn't exist - create new user
     const newUser: Omit<User, "id" | "created_at" | "updated_at"> = {
       wallet_address: normalizedAddress,
-      credits_balance: 100, // Free trial credits
-      real_credits_balance: 0,
+      real_credits_balance: 0, // Start with 0, must deposit MockUSDC
       xp: 0,
       streak: 0,
       accuracy: 0,

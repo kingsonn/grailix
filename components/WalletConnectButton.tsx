@@ -26,18 +26,86 @@ export default function WalletConnectButton() {
   }
 
   return (
-    <div className="flex flex-col items-center gap-2">
-      <ConnectButton />
+    <div className="flex flex-col items-center gap-3 w-full">
+      <ConnectButton.Custom>
+        {({
+          account,
+          chain,
+          openAccountModal,
+          openChainModal,
+          openConnectModal,
+          authenticationStatus,
+          mounted,
+        }) => {
+          const ready = mounted && authenticationStatus !== "loading";
+          const connected =
+            ready &&
+            account &&
+            chain &&
+            (!authenticationStatus || authenticationStatus === "authenticated");
+
+          return (
+            <div
+              {...(!ready && {
+                "aria-hidden": true,
+                style: {
+                  opacity: 0,
+                  pointerEvents: "none",
+                  userSelect: "none",
+                },
+              })}
+            >
+              {(() => {
+                if (!connected) {
+                  return (
+                    <button
+                      onClick={openConnectModal}
+                      type="button"
+                      className="w-full grail-button text-white font-bold py-4 px-8 rounded-xl text-lg transition-all hover:scale-105"
+                    >
+                      Connect Wallet
+                    </button>
+                  );
+                }
+
+                if (chain.unsupported) {
+                  return (
+                    <button
+                      onClick={openChainModal}
+                      type="button"
+                      className="w-full bg-loss hover:bg-loss/80 text-white font-bold py-4 px-8 rounded-xl text-lg transition-all"
+                    >
+                      Wrong network
+                    </button>
+                  );
+                }
+
+                return (
+                  <button
+                    onClick={openAccountModal}
+                    type="button"
+                    className="w-full bg-void-graphite hover:bg-void-graphite/80 text-white font-bold py-4 px-8 rounded-xl text-lg transition-all flex items-center justify-between"
+                  >
+                    <span className="font-mono">
+                      {account.displayName}
+                    </span>
+                    {user && (
+                      <span className="text-auric">
+                        {user.real_credits_balance} Credits
+                      </span>
+                    )}
+                  </button>
+                );
+              })()}
+            </div>
+          );
+        }}
+      </ConnectButton.Custom>
       {isConnected && isLoading && (
         <p className="text-sm text-gray-400">Loading profile...</p>
       )}
-      {isConnected && user && (
-        <p className="text-xs text-green-400">
-          Credits: {user.credits_balance} | XP: {user.xp}
-        </p>
-      )}
       {isConnected && error && (
-        <p className="text-xs text-red-400">Failed to load profile</p>
+        <p className="text-xs text-loss">Failed to load profile</p>
       )}
     </div>
   );

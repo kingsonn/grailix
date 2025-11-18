@@ -11,7 +11,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const { user_wallet_address, asset_type } = req.query;
+    const { user_wallet_address, asset_type, exclude_ids } = req.query;
 
     // Validate input
     if (!user_wallet_address || typeof user_wallet_address !== "string") {
@@ -23,6 +23,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const filterAssetType = asset_type && typeof asset_type === "string" ? asset_type.toLowerCase() : "all";
     if (!validAssetTypes.includes(filterAssetType)) {
       return res.status(400).json({ success: false, error: "asset_type must be 'crypto', 'stock', or 'all'" });
+    }
+
+    // Parse exclude_ids if provided
+    const excludeIds: number[] = [];
+    if (exclude_ids && typeof exclude_ids === "string") {
+      const ids = exclude_ids.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+      excludeIds.push(...ids);
     }
 
     // Normalize wallet address to lowercase
@@ -53,10 +60,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Extract prediction IDs user has already swiped
     const swipedPredictionIds = userStakes?.map((stake) => stake.prediction_id) || [];
 
+    // Combine swiped IDs and excluded IDs (from skip)
+    const allExcludedIds = [...swipedPredictionIds, ...excludeIds];
+
     // Fetch next available prediction
     let query = supabase
       .from("predictions")
-      .select("id, prediction_text, source_name, source_category, asset, asset_type, raw_text, expiry_timestamp, sentiment_yes, sentiment_no")
+      .select("id, prediction_text, source_name, source_category, asset, asset_type, raw_text, expiry_timestamp, betting_close, direction, reference_type, sentiment_yes, sentiment_no")
       .eq("status", "pending")
       .gt("expiry_timestamp", new Date().toISOString())
       .order("created_timestamp", { ascending: true });
@@ -66,9 +76,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       query = query.eq("asset_type", filterAssetType);
     }
 
-    // Exclude predictions user has already swiped
-    if (swipedPredictionIds.length > 0) {
-      query = query.not("id", "in", `(${swipedPredictionIds.join(",")})`);
+    // Exclude predictions user has already swiped or skipped
+    if (allExcludedIds.length > 0) {
+      query = query.not("id", "in", `(${allExcludedIds.join(",")})`);
     }
 
     const { data: predictions, error: predictionError } = await query.limit(1);
