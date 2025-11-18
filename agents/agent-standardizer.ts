@@ -345,6 +345,7 @@ async function processRow(row: {
 // ---------- Public Runner ----------
 
 export async function runAgent2ForIds(ids?: string[]) {
+  console.log("🔵 Agent-2 started at", new Date().toISOString());
   console.log("\n🚀 Agent-2 start. ids?", ids?.length ?? "none");
 
   let rows: any[] = [];
@@ -391,14 +392,6 @@ export async function runAgent2ForIds(ids?: string[]) {
   }
 
   console.log("\n✅ Agent-2 done.");
+  console.log("🔵 Agent-2 finished at", new Date().toISOString());
 }
 
-// Run as CLI if executed directly
-if (require.main === module) {
-  (async () => {
-    await runAgent2ForIds();
-  })().catch((e) => {
-    console.error("❌ Agent-2 fatal:", e);
-    process.exit(1);
-  });
-}

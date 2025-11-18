@@ -610,6 +610,7 @@ async function resolvePrediction(prediction: PredictionRow): Promise<void> {
  * Main resolver loop
  */
 export async function runResolver(): Promise<void> {
+  console.log("🔵 Agent-3 started at", new Date().toISOString());
   console.log("\n🚀 Agent-3: Starting resolver...\n");
 
   try {
@@ -656,17 +657,8 @@ export async function runResolver(): Promise<void> {
 
     console.log("\n✅ Agent-3 resolver complete\n");
   } catch (error) {
-    console.error("❌ Agent-3 fatal error:", error);
+    console.error("❌ Agent-3 error:", error);
   }
+  console.log("🔵 Agent-3 finished at", new Date().toISOString());
 }
 
-// -------------------- CLI Entry Point --------------------
-
-if (require.main === module) {
-  (async () => {
-    await runResolver();
-  })().catch((e) => {
-    console.error("❌ Agent-3 fatal:", e);
-    process.exit(1);
-  });
-}

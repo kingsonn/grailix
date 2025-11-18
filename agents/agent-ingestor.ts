@@ -54,6 +54,7 @@ async function getSheetsClient(): Promise<sheets_v4.Sheets> {
 }
 
 export async function runAgent1() {
+  console.log("🔵 Agent-1 started at", new Date().toISOString());
   console.log("🔵 Agent-1: Starting ingestion (Sheets → ai_raw_inputs)...");
 
   const sheets = await getSheetsClient();
@@ -182,12 +183,6 @@ export async function runAgent1() {
     // runAgent2ForIds will process only those ids (and mark them processed)
     await runAgent2ForIds(newInsertedIds);
   }
+  console.log("🔵 Agent-1 finished at", new Date().toISOString());
 }
 
-// If running directly
-if (require.main === module) {
-  runAgent1().catch((err) => {
-    console.error("Agent-1 fatal error:", err);
-    process.exit(1);
-  });
-}

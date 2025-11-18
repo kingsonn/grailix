@@ -1,0 +1,51 @@
+name: Run Grailix Agents
+
+on:
+  schedule:
+    # Run every 1 minute
+    - cron: "*/1 * * * *"
+  # Allow manual trigger from GitHub UI
+  workflow_dispatch:
+
+jobs:
+  run-agents:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Call Agent-1 Ingestor
+        run: |
+          echo "🔵 Calling Agent-1 (Ingestor)..."
+          response=$(curl -s -w "\n%{http_code}" -X POST "https://grailix.vercel.app/api/run-agent1" \
+               -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}")
+          
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+          
+          echo "Response: $body"
+          echo "HTTP Status: $http_code"
+          
+          if [ "$http_code" -ne 200 ]; then
+            echo "❌ Agent-1 failed with status $http_code"
+            exit 1
+          fi
+          
+          echo "✅ Agent-1 completed successfully"
+
+      - name: Call Agent-3 Resolver
+        run: |
+          echo "🔵 Calling Agent-3 (Resolver)..."
+          response=$(curl -s -w "\n%{http_code}" -X POST "https://grailix.vercel.app/api/run-agent3" \
+               -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}")
+          
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+          
+          echo "Response: $body"
+          echo "HTTP Status: $http_code"
+          
+          if [ "$http_code" -ne 200 ]; then
+            echo "❌ Agent-3 failed with status $http_code"
+            exit 1
+          fi
+          
+          echo "✅ Agent-3 completed successfully"
