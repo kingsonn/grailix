@@ -661,4 +661,4 @@ export async function runResolver(): Promise<void> {
   }
   console.log("🔵 Agent-3 finished at", new Date().toISOString());
 }
-
+runResolver();

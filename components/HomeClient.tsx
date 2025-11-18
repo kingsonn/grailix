@@ -137,13 +137,13 @@ export default function HomeClient() {
                   </div>
 
                   {/* Win Rate - Compact */}
-                  <div className={`bg-gradient-to-br ${user.accuracy >= 0.5 ? 'from-profit/5 to-profit/10 border-profit/30' : 'from-loss/5 to-loss/10 border-loss/30'} border rounded-lg p-4 transition-all hover:scale-105`}>
+                  <div className={`bg-gradient-to-br ${user.accuracy >= 50 ? 'from-profit/5 to-profit/10 border-profit/30' : 'from-loss/5 to-loss/10 border-loss/30'} border rounded-lg p-4 transition-all hover:scale-105`}>
                     <div className="flex items-center gap-2 mb-2">
-                      <div className={`w-1.5 h-1.5 rounded-full ${user.accuracy >= 0.5 ? 'bg-profit shadow-lg shadow-profit/50' : 'bg-loss shadow-lg shadow-loss/50'} animate-pulse`}></div>
+                      <div className={`w-1.5 h-1.5 rounded-full ${user.accuracy >= 50 ? 'bg-profit shadow-lg shadow-profit/50' : 'bg-loss shadow-lg shadow-loss/50'} animate-pulse`}></div>
                       <span className="text-gray-400 text-xs font-mono uppercase">WIN_RATE</span>
                     </div>
-                    <div className={`text-3xl font-black font-mono tabular-nums ${user.accuracy >= 0.5 ? 'profit-text drop-shadow-[0_0_15px_rgba(34,197,94,0.3)]' : 'loss-text drop-shadow-[0_0_15px_rgba(239,68,68,0.3)]'}`}>
-                      {(user.accuracy * 100).toFixed(1)}%
+                    <div className={`text-3xl font-black font-mono tabular-nums ${user.accuracy >= 50 ? 'profit-text drop-shadow-[0_0_15px_rgba(34,197,94,0.3)]' : 'loss-text drop-shadow-[0_0_15px_rgba(239,68,68,0.3)]'}`}>
+                      {user.accuracy.toFixed(1)}%
                     </div>
                   </div>
 
