@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useAccount } from "wagmi";
 import { useUser } from "@/lib/useUser";
 import WalletConnectButton from "@/components/WalletConnectButton";
-import WalletControl from "@/components/WalletControl";
-import Link from "next/link";
+import AppLayout from "@/components/AppLayout";
 
 interface HistoryItem {
   id: number;
@@ -28,6 +28,7 @@ interface HistoryItem {
 }
 
 export default function HistoryClient() {
+  const router = useRouter();
   const { address, isConnected } = useAccount();
   const { user, isLoading: userLoading, refetch } = useUser();
   const [history, setHistory] = useState<HistoryItem[]>([]);
@@ -73,52 +74,72 @@ export default function HistoryClient() {
   }, [user]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black text-white p-6">
-      <div className="max-w-4xl mx-auto">
-        {/* Wallet Control */}
-        <div className="flex justify-end mb-4">
-          <WalletControl />
-        </div>
+    <AppLayout>
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
+        {/* Back Button */}
+        <button
+          onClick={() => router.push("/")}
+          className="mb-6 flex items-center gap-2 text-gray-400 hover:text-white transition-colors font-mono text-sm group"
+        >
+          <div className="w-6 h-6 rounded border border-grail/30 group-hover:border-grail/60 flex items-center justify-center transition-colors">
+            <span className="text-xs">←</span>
+          </div>
+          <span>BACK_TO_DASHBOARD</span>
+        </button>
 
         {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <Link href="/" className="text-blue-400 hover:underline">
-            ← Back
-          </Link>
-          <h1 className="text-3xl font-bold">Prediction History</h1>
-          <div className="w-16" />
+        <div className="bg-void-black border border-grail/30 rounded-lg overflow-hidden shadow-xl mb-6">
+          <div className="bg-gradient-to-r from-void-graphite to-void-graphite/80 border-b border-grail/30 px-4 py-2">
+            <div className="flex items-center gap-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-grail animate-pulse shadow-lg shadow-grail/50"></div>
+              <span className="text-gray-400 text-xs font-mono tracking-wider">PREDICTION_HISTORY</span>
+            </div>
+          </div>
+          <div className="p-4 sm:p-6">
+            <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2 font-mono">YOUR_HISTORY</h1>
+            <p className="text-gray-400 text-sm font-mono">{'>'} Track your prediction performance</p>
+          </div>
         </div>
 
         {/* Error Message */}
         {error && (
-          <div className="bg-red-900 bg-opacity-50 border border-red-500 text-red-200 p-4 rounded-lg mb-6">
-            {error}
+          <div className="bg-loss/10 border border-loss text-loss p-4 rounded-lg mb-6 font-mono text-sm">
+            <div className="flex items-center gap-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-loss animate-pulse"></div>
+              <span>{error}</span>
+            </div>
           </div>
         )}
 
         {/* Wallet Connection */}
         {!isConnected && (
-          <div className="bg-gray-800 rounded-lg p-8 text-center">
-            <p className="text-gray-400 mb-4">Connect your wallet to view history</p>
+          <div className="bg-void-black border border-grail/30 rounded-lg p-8 text-center">
+            <div className="text-5xl mb-4">🔒</div>
+            <p className="text-gray-400 mb-4 font-mono">CONNECT_WALLET_TO_VIEW_HISTORY</p>
             <WalletConnectButton />
           </div>
         )}
 
         {/* Loading State */}
         {isConnected && (userLoading || isLoading) && (
-          <div className="bg-gray-800 rounded-lg p-8 text-center">
-            <p className="text-gray-400">Loading history...</p>
+          <div className="bg-void-black border border-grail/30 rounded-lg p-8 text-center">
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-grail border-t-transparent mb-4"></div>
+            <p className="text-gray-400 font-mono">LOADING_HISTORY...</p>
           </div>
         )}
 
         {/* No History */}
         {isConnected && !userLoading && !isLoading && history.length === 0 && (
-          <div className="bg-gray-800 rounded-lg p-8 text-center">
-            <p className="text-xl font-bold mb-2">No Predictions Yet</p>
-            <p className="text-gray-400 mb-6">Start predicting to see your history here.</p>
-            <Link href="/predict" className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-colors inline-block">
-              Start Predicting
-            </Link>
+          <div className="bg-void-black border border-grail/30 rounded-lg p-8 text-center">
+            <p className="text-5xl mb-4">📋</p>
+            <p className="text-xl font-bold mb-2 font-mono">NO_PREDICTIONS_YET</p>
+            <p className="text-gray-400 mb-6 font-mono text-sm">{'>'} Start predicting to see your history here</p>
+            <button
+              onClick={() => router.push("/predict")}
+              className="bg-gradient-to-br from-neon to-neon/80 hover:from-neon/90 hover:to-neon/70 text-void-black font-bold font-mono py-3 px-6 rounded-lg transition-all inline-block border border-neon/50 shadow-lg shadow-neon/20"
+            >
+              START_PREDICTING
+            </button>
           </div>
         )}
 
@@ -132,64 +153,67 @@ export default function HistoryClient() {
               const skipped = item.position === "SKIP";
 
               return (
-                <div key={item.id} className="bg-gray-800 rounded-lg p-6 shadow-lg">
-                  {/* Header */}
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-bold">
-                          {item.asset}
-                        </span>
-                        <span
-                          className={`px-3 py-1 rounded-full text-sm font-bold ${
-                            item.position === "YES"
-                              ? "bg-green-600 text-white"
-                              : item.position === "NO"
-                              ? "bg-red-600 text-white"
-                              : "bg-gray-600 text-white"
-                          }`}
-                        >
-                          {item.position}
-                        </span>
-                        {isResolved && (
-                          <span
-                            className={`px-3 py-1 rounded-full text-sm font-bold ${
-                              won
-                                ? "bg-green-500 text-white"
-                                : lost
-                                ? "bg-red-500 text-white"
-                                : "bg-gray-500 text-white"
-                            }`}
-                          >
-                            {won ? "WON" : lost ? "LOST" : skipped ? "SKIPPED" : "PENDING"}
-                          </span>
-                        )}
+                <div key={item.id} className="bg-void-black border border-grail/30 rounded-lg overflow-hidden shadow-xl">
+                  <div className="bg-gradient-to-r from-void-graphite to-void-graphite/80 border-b border-grail/30 px-4 py-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-grail animate-pulse shadow-lg shadow-grail/50"></div>
+                        <span className="text-gray-400 text-xs font-mono tracking-wider">PREDICTION_#{item.id}</span>
                       </div>
-                      <p className="text-lg font-semibold">{item.prediction_text}</p>
+                      {isResolved && (
+                        <span className={`px-2 py-0.5 rounded text-xs font-mono font-bold border ${
+                          won ? "bg-profit/20 text-profit border-profit/30" :
+                          lost ? "bg-loss/20 text-loss border-loss/30" :
+                          "bg-gray-700 text-gray-300 border-gray-600"
+                        }`}>
+                          {won ? "WON" : lost ? "LOST" : skipped ? "SKIPPED" : "PENDING"}
+                        </span>
+                      )}
                     </div>
+                  </div>
+                  <div className="p-4 sm:p-6">
+                  {/* Header */}
+                  <div className="mb-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="bg-grail/20 text-grail-light border border-grail/40 px-3 py-1 rounded-lg text-sm font-bold font-mono">
+                        {item.asset}
+                      </span>
+                      <span className={`px-3 py-1 rounded-lg text-sm font-bold font-mono border ${
+                        item.position === "YES" ? "bg-profit/20 text-profit border-profit/30" :
+                        item.position === "NO" ? "bg-loss/20 text-loss border-loss/30" :
+                        "bg-gray-700 text-gray-300 border-gray-600"
+                      }`}>
+                        {item.position}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-1 h-1 rounded-full bg-grail"></div>
+                      <span className="text-xs font-mono text-gray-500 uppercase">Question</span>
+                    </div>
+                    <p className="text-base font-semibold text-gray-200 font-mono">{item.prediction_text}</p>
                   </div>
 
                   {/* Stats Grid */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                    <div>
-                      <p className="text-gray-400 text-sm">Stake</p>
-                      <p className="text-xl font-bold">{item.stake_credits}</p>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                    <div className="bg-void-graphite/30 p-3 rounded-lg border border-grail/20">
+                      <p className="text-gray-500 text-xs font-mono uppercase mb-1">Stake</p>
+                      <p className="text-lg font-bold font-mono tabular-nums">{item.stake_credits}</p>
                     </div>
                     {isResolved && (
                       <>
-                        <div>
-                          <p className="text-gray-400 text-sm">Payout</p>
-                          <p className={`text-xl font-bold ${won ? "text-green-400" : ""}`}>
+                        <div className="bg-void-graphite/30 p-3 rounded-lg border border-grail/20">
+                          <p className="text-gray-500 text-xs font-mono uppercase mb-1">Payout</p>
+                          <p className={`text-lg font-bold font-mono tabular-nums ${won ? "text-profit" : ""}`}>
                             {item.payout_credits || 0}
                           </p>
                         </div>
-                        <div>
-                          <p className="text-gray-400 text-sm">Outcome</p>
-                          <p className="text-xl font-bold">{item.outcome_value}</p>
+                        <div className="bg-void-graphite/30 p-3 rounded-lg border border-grail/20">
+                          <p className="text-gray-500 text-xs font-mono uppercase mb-1">Outcome</p>
+                          <p className="text-lg font-bold font-mono">{item.outcome_value}</p>
                         </div>
-                        <div>
-                          <p className="text-gray-400 text-sm">Resolved Price</p>
-                          <p className="text-xl font-bold">
+                        <div className="bg-void-graphite/30 p-3 rounded-lg border border-grail/20">
+                          <p className="text-gray-500 text-xs font-mono uppercase mb-1">Resolved_Price</p>
+                          <p className="text-lg font-bold font-mono tabular-nums">
                             {item.resolved_price ? `$${item.resolved_price.toFixed(2)}` : "N/A"}
                           </p>
                         </div>
@@ -198,10 +222,10 @@ export default function HistoryClient() {
                   </div>
 
                   {/* Timestamps */}
-                  <div className="text-sm text-gray-400 space-y-1">
-                    <p>Expires: {new Date(item.expiry_timestamp).toLocaleString()}</p>
+                  <div className="text-xs text-gray-500 space-y-1 font-mono">
+                    <p>EXPIRES: {new Date(item.expiry_timestamp).toLocaleString()}</p>
                     {isResolved && item.resolved_timestamp && (
-                      <p>Resolved: {new Date(item.resolved_timestamp).toLocaleString()}</p>
+                      <p>RESOLVED: {new Date(item.resolved_timestamp).toLocaleString()}</p>
                     )}
                   </div>
 
@@ -210,25 +234,26 @@ export default function HistoryClient() {
                     <div className="mt-4">
                       <button
                         onClick={() => setExpandedReport(expandedReport === item.id ? null : item.id)}
-                        className="text-blue-400 hover:underline text-sm"
+                        className="bg-void-graphite hover:bg-grail/20 text-white font-bold font-mono py-2 px-4 rounded-lg transition-colors text-xs border border-grail/30 hover:border-grail/50"
                       >
-                        {expandedReport === item.id ? "Hide" : "Show"} Resolution Report
+                        {expandedReport === item.id ? "HIDE" : "SHOW"}_RESOLUTION_REPORT
                       </button>
                       {expandedReport === item.id && (
-                        <div className="mt-2 bg-gray-900 p-4 rounded-lg overflow-x-auto">
-                          <pre className="text-xs text-gray-300">
+                        <div className="mt-2 bg-void-graphite/50 border border-grail/20 rounded-lg p-4 overflow-x-auto">
+                          <pre className="text-xs text-gray-300 font-mono">
                             {JSON.stringify(JSON.parse(item.resolution_report), null, 2)}
                           </pre>
                         </div>
                       )}
                     </div>
                   )}
+                  </div>
                 </div>
               );
             })}
           </div>
         )}
       </div>
-    </div>
+    </AppLayout>
   );
 }
