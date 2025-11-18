@@ -74,7 +74,7 @@ export default function HomeClient() {
                   <div className="mt-6 pt-6 border-t border-grail/20 space-y-2">
                     <div className="flex items-center gap-2 text-xs font-mono text-gray-400">
                       <div className="w-1 h-1 rounded-full bg-profit"></div>
-                      <span>Predict and earn</span>
+                      <span>Predict and earn rewards</span>
                     </div>
                     <div className="flex items-center gap-2 text-xs font-mono text-gray-400">
                       <div className="w-1 h-1 rounded-full bg-auric"></div>
