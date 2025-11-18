@@ -473,7 +473,7 @@ async function applyPayouts(
   for (const winner of winners) {
     const stake = winner.stake_credits;
     let payout: number;
-
+    console.log(`  → User ${winner.user_id}: stake=${stake}`);
     if (losingPool === 0) {
       // No opposite liquidity - return stake only
       payout = stake;
@@ -483,7 +483,7 @@ async function applyPayouts(
       payout = Math.floor(stake + share * distributable);
     }
 
-    console.log(`  → User ${winner.user_wallet_address}: stake=${stake}, payout=${payout}`);
+    console.log(`  → User ${winner.user_id}: stake=${stake}, payout=${payout}`);
 
     // Update user_stakes with payout
     const { error: updateStakeError } = await supabase
@@ -500,7 +500,7 @@ async function applyPayouts(
     let success = false;
     for (let attempt = 1; attempt <= 3; attempt++) {
       const { error: rpcError } = await supabase.rpc("increment_user_balance", {
-        user_id_input: winner.id,
+        user_id_input: winner.user_id,
         amount: payout,
       });
 
@@ -509,29 +509,27 @@ async function applyPayouts(
         break;
       }
 
-      console.error(`❌ RPC attempt ${attempt} failed for user ${winner.user_wallet_address}:`, rpcError);
+      console.error(`❌ RPC attempt ${attempt} failed for user ${winner.wallet_address}:`, rpcError);
       if (attempt < 3) {
         await new Promise((resolve) => setTimeout(resolve, 1000)); // Wait 1s before retry
       }
     }
 
     if (!success) {
-      console.error(`❌ Failed to increment balance for user ${winner.user_wallet_address} after 3 attempts`);
+      console.error(`❌ Failed to increment balance for user ${winner.wallet_address} after 3 attempts`);
       continue;
     }
 
     // Log transaction
     const { error: txError } = await supabase.from("transactions").insert({
-      user_wallet_address: winner.user_wallet_address,
+      user_id: winner.user_id,
       type: "payout",
       amount: payout,
       status: "confirmed",
-      prediction_id: predictionId,
-      created_timestamp: new Date().toISOString(),
     });
 
     if (txError) {
-      console.error(`❌ Failed to log transaction for user ${winner.user_wallet_address}:`, txError);
+      console.error(`❌ Failed to log transaction for user ${winner.user_id}:`, txError);
     }
   }
 

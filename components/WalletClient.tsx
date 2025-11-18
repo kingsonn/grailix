@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useUser } from "@/lib/useUser";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { parseUnits } from "viem";
@@ -10,6 +11,7 @@ import WalletConnectButton from "@/components/WalletConnectButton";
 import AppLayout from "@/components/AppLayout";
 
 export default function WalletClient() {
+  const router = useRouter();
   const { address, isConnected } = useAccount();
   const { user, isLoading, refetch } = useUser();
   const [depositAmount, setDepositAmount] = useState("");
@@ -17,6 +19,7 @@ export default function WalletClient() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error" | "info"; text: string } | null>(null);
   const [activeTab, setActiveTab] = useState<"deposit" | "withdraw">("deposit");
+  const [currentDepositId, setCurrentDepositId] = useState<string>("");
 
   useEffect(() => {
     if (isConnected && address) {
@@ -69,6 +72,7 @@ export default function WalletClient() {
 
       const amountInWei = parseUnits(depositAmount, 18);
       const internalDepositId = uuidv4();
+      setCurrentDepositId(internalDepositId); // Store for later use
 
       writeDeposit({
         address: VAULT_ADDRESS,
@@ -92,6 +96,7 @@ export default function WalletClient() {
               wallet_address: address,
               amount: parseFloat(depositAmount),
               tx_hash: depositHash,
+              internal_deposit_id: currentDepositId, // Include the deposit ID
             }),
           });
 
@@ -160,13 +165,30 @@ export default function WalletClient() {
 
   return (
     <AppLayout>
-      <div className="max-w-5xl mx-auto px-6 py-8">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
+        {/* Back Button */}
+        <button
+          onClick={() => router.push("/")}
+          className="mb-4 flex items-center gap-2 text-gray-400 hover:text-white transition-colors font-mono text-sm group"
+        >
+          <div className="w-6 h-6 rounded border border-grail/30 group-hover:border-grail/60 flex items-center justify-center transition-colors">
+            <span className="text-xs">←</span>
+          </div>
+          <span>BACK_TO_DASHBOARD</span>
+        </button>
+
         {!isConnected && (
-          <div className="grail-glass rounded-2xl p-12 text-center">
+          <div className="bg-void-black border border-grail/30 rounded-lg overflow-hidden shadow-xl p-8 sm:p-12 text-center">
+            <div className="bg-gradient-to-r from-void-graphite to-void-graphite/80 border-b border-grail/30 px-4 py-2 mb-6 -mx-8 sm:-mx-12 -mt-8 sm:-mt-12">
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-loss animate-pulse shadow-lg shadow-loss/50"></div>
+                <span className="text-gray-400 text-xs font-mono tracking-wider">CONNECTION_REQUIRED</span>
+              </div>
+            </div>
             <div className="text-6xl mb-4">💰</div>
-            <h2 className="text-2xl font-bold mb-3">Connect Your Wallet</h2>
-            <p className="text-gray-400 mb-6">
-              Connect your wallet to manage your funds
+            <h2 className="text-2xl font-bold mb-3 font-mono">CONNECT_WALLET</h2>
+            <p className="text-gray-400 mb-6 font-mono text-sm">
+              {'>'} Initialize wallet connection to access fund management
             </p>
             <WalletConnectButton />
           </div>
@@ -174,95 +196,108 @@ export default function WalletClient() {
 
         {isConnected && user && (
           <div className="fade-in">
-            {/* Balance Card */}
-            <div className="grail-glass rounded-3xl p-8 mb-8">
-              <div className="text-center mb-8">
-                <p className="text-gray-400 text-sm uppercase tracking-wider mb-2">Total Balance</p>
-                <h1 className="text-6xl font-black text-auric mb-2">{user.real_credits_balance}</h1>
-                <p className="text-gray-500 text-sm">MockUSDC Credits</p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-void-graphite rounded-xl p-4 text-center">
-                  <p className="text-gray-400 text-xs uppercase mb-1">XP</p>
-                  <p className="text-2xl font-bold text-grail-light">{user.xp}</p>
-                </div>
-                <div className="bg-void-graphite rounded-xl p-4 text-center">
-                  <p className="text-gray-400 text-xs uppercase mb-1">Streak</p>
-                  <p className="text-2xl font-bold text-neon">{user.streak} days</p>
-                </div>
-                <div className="bg-void-graphite rounded-xl p-4 text-center">
-                  <p className="text-gray-400 text-xs uppercase mb-1">Accuracy</p>
-                  <p className={`text-2xl font-bold ${user.accuracy >= 0.5 ? 'profit-text' : 'loss-text'}`}>
-                    {(user.accuracy * 100).toFixed(1)}%
-                  </p>
+            {/* Balance Card - Compact */}
+            <div className="bg-void-black border border-grail/30 rounded-lg overflow-hidden shadow-xl mb-4">
+              <div className="p-4 sm:p-5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-auric animate-pulse shadow-lg shadow-auric/50"></div>
+                    <span className="text-gray-500 text-xs uppercase font-mono">Balance</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <h1 className="text-3xl sm:text-4xl font-black text-auric font-mono tabular-nums">{user.real_credits_balance}</h1>
+                    <span className="text-gray-400 text-xs font-mono uppercase bg-auric/10 px-2 py-1 rounded border border-auric/30">USDC</span>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Tabs */}
-            <div className="flex gap-2 mb-6">
+            {/* Tabs - Terminal Style */}
+            <div className="flex gap-3 mb-6">
               <button
                 onClick={() => setActiveTab("deposit")}
                 className={`
-                  flex-1 py-4 rounded-xl font-bold transition-all
+                  flex-1 py-4 rounded-lg font-bold font-mono transition-all border text-sm sm:text-base
                   ${activeTab === "deposit" 
-                    ? "bg-grail-gradient text-white shadow-grail" 
-                    : "bg-void-graphite text-gray-400 hover:text-white"
+                    ? "bg-gradient-to-br from-profit to-profit/80 text-white border-profit/50 shadow-lg shadow-profit/20" 
+                    : "bg-void-graphite text-gray-400 hover:text-white border-grail/20 hover:border-grail/40"
                   }
                 `}
               >
-                💳 Deposit
+                <div className="flex items-center justify-center gap-2">
+                  <div className={`w-1.5 h-1.5 rounded-full ${activeTab === "deposit" ? "bg-white" : "bg-gray-500"}`}></div>
+                  <span>DEPOSIT</span>
+                </div>
               </button>
               <button
                 onClick={() => setActiveTab("withdraw")}
                 className={`
-                  flex-1 py-4 rounded-xl font-bold transition-all
+                  flex-1 py-4 rounded-lg font-bold font-mono transition-all border text-sm sm:text-base
                   ${activeTab === "withdraw" 
-                    ? "bg-grail-gradient text-white shadow-grail" 
-                    : "bg-void-graphite text-gray-400 hover:text-white"
+                    ? "bg-gradient-to-br from-neon to-neon/80 text-void-black border-neon/50 shadow-lg shadow-neon/20" 
+                    : "bg-void-graphite text-gray-400 hover:text-white border-grail/20 hover:border-grail/40"
                   }
                 `}
               >
-                💸 Withdraw
+                <div className="flex items-center justify-center gap-2">
+                  <div className={`w-1.5 h-1.5 rounded-full ${activeTab === "withdraw" ? "bg-void-black" : "bg-gray-500"}`}></div>
+                  <span>WITHDRAW</span>
+                </div>
               </button>
             </div>
 
-            {/* Status Message */}
+            {/* Status Message - Terminal Style */}
             {statusMessage && (
               <div className={`
-                rounded-xl p-4 mb-6 border
+                rounded-lg p-4 mb-6 border font-mono text-sm
                 ${statusMessage.type === "success" ? "bg-profit/10 border-profit text-profit" : ""}
                 ${statusMessage.type === "error" ? "bg-loss/10 border-loss text-loss" : ""}
                 ${statusMessage.type === "info" ? "bg-neon/10 border-neon text-neon" : ""}
               `}>
-                {statusMessage.text}
+                <div className="flex items-center gap-2">
+                  <div className={`w-1.5 h-1.5 rounded-full animate-pulse
+                    ${statusMessage.type === "success" ? "bg-profit" : ""}
+                    ${statusMessage.type === "error" ? "bg-loss" : ""}
+                    ${statusMessage.type === "info" ? "bg-neon" : ""}
+                  `}></div>
+                  <span>{statusMessage.text}</span>
+                </div>
               </div>
             )}
 
-            {/* Deposit Tab */}
+            {/* Deposit Tab - Terminal Style */}
             {activeTab === "deposit" && (
-              <div className="grail-card rounded-2xl p-8">
-                <h2 className="text-2xl font-bold mb-6">Deposit MockUSDC</h2>
+              <div className="bg-void-black border border-grail/30 rounded-lg overflow-hidden shadow-xl">
+                <div className="bg-gradient-to-r from-void-graphite to-void-graphite/80 border-b border-grail/30 px-4 py-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-profit animate-pulse shadow-lg shadow-profit/50"></div>
+                    <span className="text-gray-400 text-xs font-mono tracking-wider">DEPOSIT_INTERFACE</span>
+                  </div>
+                </div>
+                <div className="p-6 sm:p-8">
+                <h2 className="text-xl sm:text-2xl font-bold mb-6 font-mono">DEPOSIT_MOCKUSDC</h2>
                 
                 <div className="mb-6">
-                  <label className="block text-sm text-gray-400 mb-2">Amount</label>
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-1 h-1 rounded-full bg-auric"></div>
+                    <label className="block text-xs text-gray-500 uppercase font-mono">Amount</label>
+                  </div>
                   <input
                     type="number"
                     value={depositAmount}
                     onChange={(e) => setDepositAmount(e.target.value)}
                     placeholder="0.00"
-                    className="w-full bg-void-graphite border border-grail/30 rounded-xl px-6 py-4 text-white text-2xl font-bold focus:outline-none focus:border-grail"
+                    className="w-full bg-void-graphite border border-grail/30 rounded-lg px-4 sm:px-6 py-3 sm:py-4 text-white text-xl sm:text-2xl font-bold font-mono tabular-nums focus:outline-none focus:border-auric transition-colors"
                   />
                 </div>
 
                 {/* Quick Amount Buttons */}
-                <div className="grid grid-cols-4 gap-3 mb-6">
+                <div className="grid grid-cols-4 gap-2 sm:gap-3 mb-6">
                   {[10, 50, 100, 500].map((amount) => (
                     <button
                       key={amount}
                       onClick={() => setDepositAmount(amount.toString())}
-                      className="bg-void-graphite hover:bg-grail/20 text-white py-3 rounded-lg font-bold transition-all"
+                      className="bg-void-graphite hover:bg-grail/20 text-white py-2 sm:py-3 rounded-lg font-bold font-mono text-sm sm:text-base transition-all border border-grail/20 hover:border-grail/40"
                     >
                       {amount}
                     </button>
@@ -272,59 +307,73 @@ export default function WalletClient() {
                 <button
                   onClick={handleDeposit}
                   disabled={isProcessing || !depositAmount || parseFloat(depositAmount) <= 0}
-                  className="w-full auric-button font-bold py-5 rounded-xl text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full bg-gradient-to-br from-profit to-profit/80 hover:from-profit/90 hover:to-profit/70 text-white font-bold font-mono py-4 sm:py-5 rounded-lg text-base sm:text-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all border border-profit/50 shadow-lg shadow-profit/20"
                 >
-                  {isProcessing ? "Processing..." : "Deposit"}
+                  {isProcessing ? "PROCESSING..." : "EXECUTE_DEPOSIT"}
                 </button>
 
-                <div className="mt-6 p-4 bg-void-graphite/50 rounded-lg">
-                  <p className="text-xs text-gray-400 leading-relaxed">
-                    💡 <strong>How it works:</strong> Deposits are processed in 3 steps: 
-                    (1) Approve tokens, (2) Deposit to vault, (3) Update balance. 
-                    This ensures maximum security for your funds.
-                  </p>
+                <div className="mt-6 p-4 bg-void-graphite/50 rounded-lg border border-grail/20">
+                  <div className="flex items-start gap-2">
+                    <div className="w-1 h-1 rounded-full bg-neon mt-1.5"></div>
+                    <p className="text-xs text-gray-400 leading-relaxed font-mono">
+                      <span className="text-neon font-bold">PROCESS:</span> Deposits execute in 3 steps: 
+                      (1) Token approval, (2) Vault deposit, (3) Balance update. 
+                      Maximum security protocol enforced.
+                    </p>
+                  </div>
+                </div>
                 </div>
               </div>
             )}
 
-            {/* Withdraw Tab */}
+            {/* Withdraw Tab - Terminal Style */}
             {activeTab === "withdraw" && (
-              <div className="grail-card rounded-2xl p-8">
-                <h2 className="text-2xl font-bold mb-6">Withdraw MockUSDC</h2>
+              <div className="bg-void-black border border-grail/30 rounded-lg overflow-hidden shadow-xl">
+                <div className="bg-gradient-to-r from-void-graphite to-void-graphite/80 border-b border-grail/30 px-4 py-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-neon animate-pulse shadow-lg shadow-neon/50"></div>
+                    <span className="text-gray-400 text-xs font-mono tracking-wider">WITHDRAW_INTERFACE</span>
+                  </div>
+                </div>
+                <div className="p-6 sm:p-8">
+                <h2 className="text-xl sm:text-2xl font-bold mb-6 font-mono">WITHDRAW_MOCKUSDC</h2>
                 
                 <div className="mb-6">
-                  <label className="block text-sm text-gray-400 mb-2">Amount</label>
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-1 h-1 rounded-full bg-neon"></div>
+                    <label className="block text-xs text-gray-500 uppercase font-mono">Amount</label>
+                  </div>
                   <input
                     type="number"
                     value={withdrawAmount}
                     onChange={(e) => setWithdrawAmount(e.target.value)}
                     placeholder="0.00"
                     max={user.real_credits_balance}
-                    className="w-full bg-void-graphite border border-grail/30 rounded-xl px-6 py-4 text-white text-2xl font-bold focus:outline-none focus:border-grail"
+                    className="w-full bg-void-graphite border border-grail/30 rounded-lg px-4 sm:px-6 py-3 sm:py-4 text-white text-xl sm:text-2xl font-bold font-mono tabular-nums focus:outline-none focus:border-neon transition-colors"
                   />
-                  <div className="flex justify-between mt-2 text-xs">
-                    <span className="text-gray-500">Min: 1</span>
+                  <div className="flex justify-between mt-2 text-xs font-mono">
+                    <span className="text-gray-500">MIN: 1</span>
                     <span className="text-gray-400">
-                      Available: <span className="text-auric font-bold">{user.real_credits_balance}</span>
+                      AVAILABLE: <span className="text-auric font-bold tabular-nums">{user.real_credits_balance}</span>
                     </span>
                   </div>
                 </div>
 
                 {/* Quick Amount Buttons */}
-                <div className="grid grid-cols-5 gap-3 mb-6">
+                <div className="grid grid-cols-5 gap-2 sm:gap-3 mb-6">
                   {[10, 25, 50, 100].map((amount) => (
                     <button
                       key={amount}
                       onClick={() => setWithdrawAmount(amount.toString())}
                       disabled={amount > user.real_credits_balance}
-                      className="bg-void-graphite hover:bg-grail/20 disabled:opacity-30 disabled:cursor-not-allowed text-white py-3 rounded-lg font-bold transition-all"
+                      className="bg-void-graphite hover:bg-grail/20 disabled:opacity-30 disabled:cursor-not-allowed text-white py-2 sm:py-3 rounded-lg font-bold font-mono text-xs sm:text-base transition-all border border-grail/20 hover:border-grail/40"
                     >
                       {amount}
                     </button>
                   ))}
                   <button
                     onClick={() => setWithdrawAmount(user.real_credits_balance.toString())}
-                    className="bg-void-graphite hover:bg-grail/20 text-white py-3 rounded-lg font-bold transition-all"
+                    className="bg-void-graphite hover:bg-grail/20 text-white py-2 sm:py-3 rounded-lg font-bold font-mono text-xs sm:text-base transition-all border border-grail/20 hover:border-grail/40"
                   >
                     MAX
                   </button>
@@ -333,17 +382,21 @@ export default function WalletClient() {
                 <button
                   onClick={handleWithdraw}
                   disabled={isProcessing || !withdrawAmount || parseFloat(withdrawAmount) <= 0 || parseFloat(withdrawAmount) > user.real_credits_balance}
-                  className="w-full neon-button font-bold py-5 rounded-xl text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full bg-gradient-to-br from-neon to-neon/80 hover:from-neon/90 hover:to-neon/70 text-void-black font-bold font-mono py-4 sm:py-5 rounded-lg text-base sm:text-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all border border-neon/50 shadow-lg shadow-neon/20"
                 >
-                  {isProcessing ? "Processing..." : "Withdraw"}
+                  {isProcessing ? "PROCESSING..." : "EXECUTE_WITHDRAW"}
                 </button>
 
-                <div className="mt-6 p-4 bg-void-graphite/50 rounded-lg">
-                  <p className="text-xs text-gray-400 leading-relaxed">
-                    ⚠️ <strong>Important:</strong> Withdrawals are processed by our smart contract. 
-                    Funds will be sent to your connected wallet address. 
-                    Processing may take a few minutes.
-                  </p>
+                <div className="mt-6 p-4 bg-void-graphite/50 rounded-lg border border-grail/20">
+                  <div className="flex items-start gap-2">
+                    <div className="w-1 h-1 rounded-full bg-loss mt-1.5"></div>
+                    <p className="text-xs text-gray-400 leading-relaxed font-mono">
+                      <span className="text-loss font-bold">WARNING:</span> Withdrawals processed via smart contract. 
+                      Funds transfer to connected wallet address. 
+                      Processing time: ~2-5 minutes.
+                    </p>
+                  </div>
+                </div>
                 </div>
               </div>
             )}
