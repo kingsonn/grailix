@@ -53,10 +53,6 @@ export default function ProfilePage() {
                   <p className="text-gray-400 text-sm">Accuracy</p>
                   <p className="text-3xl font-bold text-green-400">{user.accuracy}%</p>
                 </div>
-                <div>
-                  <p className="text-gray-400 text-sm">Free Credits</p>
-                  <p className="text-3xl font-bold text-blue-400">{user.credits_balance}</p>
-                </div>
               </div>
             </div>
 

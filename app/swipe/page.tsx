@@ -171,11 +171,7 @@ export default function SwipePage() {
             <PredictionCard prediction={prediction} onSwipe={handleSwipe} />
 
             {/* User Balance */}
-            {user && (
-              <div className="mt-4 text-center text-sm text-gray-400">
-                Balance: <span className="text-green-400 font-semibold">{user.credits_balance}</span> credits
-              </div>
-            )}
+           
           </>
         )}
 
@@ -184,7 +180,7 @@ export default function SwipePage() {
           <StakeSelector
             onSelect={handleStakeSelect}
             onCancel={handleStakeCancel}
-            userBalance={user.credits_balance}
+            userBalance={user.real_credits_balance}
           />
         )}
       </div>
