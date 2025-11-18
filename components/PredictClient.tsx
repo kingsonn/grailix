@@ -101,6 +101,7 @@ export default function PredictClient() {
       setSkippedIds([]); // Reset skipped IDs when category changes
       fetchNextPrediction().finally(() => setIsLoading(false));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, category]);
 
   // Reset betting closed state and submitting when prediction changes
@@ -111,6 +112,7 @@ export default function PredictClient() {
       setBettingClosed(bettingCloseTime > 0 && now >= bettingCloseTime);
       setIsSubmitting(false); // Reset submitting state for new prediction
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prediction?.id]);
 
   // Countdown timer for expiry
@@ -143,7 +145,8 @@ export default function PredictClient() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [prediction]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prediction?.expiry_timestamp]);
 
   // Countdown timer for betting close
   useEffect(() => {
@@ -676,7 +679,7 @@ export default function PredictClient() {
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="w-1 h-1 rounded-full bg-loss"></div>
-                      <span>NO: Predict outcome won't occur</span>
+                      <span>NO: Predict outcome won&apos;t occur</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="w-1 h-1 rounded-full bg-gray-500"></div>

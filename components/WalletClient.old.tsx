@@ -87,6 +87,7 @@ export default function WalletClient() {
         args: [amountWei, internalDepositId],
       });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isApproved]);
 
   // Handle deposit success -> call backend API
@@ -124,7 +125,8 @@ export default function WalletClient() {
           setIsProcessing(false);
         });
     }
-  }, [isDeposited, depositHash]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [depositHash]);
 
   const handleWithdraw = async () => {
     if (!address || !withdrawAmount || !user) return;

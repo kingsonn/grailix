@@ -81,6 +81,7 @@ export default function WalletClient() {
         args: [amountInWei, internalDepositId],
       });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isApproved]);
 
   useEffect(() => {
@@ -118,6 +119,7 @@ export default function WalletClient() {
 
       finalizeDeposit();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isDeposited]);
 
   const handleWithdraw = async () => {
