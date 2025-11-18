@@ -30,13 +30,13 @@ if (!process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
 if (!process.env.GOOGLE_SHEET_ID) {
   throw new Error("Missing GOOGLE_SHEET_ID env var");
 }
-if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
   throw new Error("Missing Supabase env vars");
 }
 
 const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID!;
 const READ_RANGE = "Sheet1!A1:F999"; // header + rows (now includes asset_type)
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
 
 // Parse creds once
 const serviceAccountCreds = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON!);
@@ -184,5 +184,10 @@ export async function runAgent1() {
   }
 }
 
-// CLI entry point removed for serverless compatibility
-// Use /pages/api/run-agent1.ts endpoint instead
+// If running directly
+if (require.main === module) {
+  runAgent1().catch((err) => {
+    console.error("Agent-1 fatal error:", err);
+    process.exit(1);
+  });
+}
