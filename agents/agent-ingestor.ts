@@ -186,4 +186,4 @@ export async function runAgent1() {
   console.log("🔵 Agent-1 finished at", new Date().toISOString());
 }
 
-// runAgent1();
+runAgent1();

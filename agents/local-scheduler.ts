@@ -18,7 +18,7 @@ import { runAgent1 } from "./agent-ingestor";
 import { runResolver } from "./agent-resolver";
 
 // Configuration
-const INTERVAL_MS = 5 * 60 * 1000; // 5 minutes in milliseconds
+const INTERVAL_MS = 1 * 60 * 1000; // 5 minutes in milliseconds
 const RUN_ON_START = true; // Run immediately on startup
 
 // State tracking

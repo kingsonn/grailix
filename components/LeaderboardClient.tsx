@@ -152,7 +152,7 @@ export default function LeaderboardClient() {
                         {entry.streak}
                       </td>
                       <td className="py-3 px-4 sm:px-6 text-right font-bold font-mono tabular-nums text-profit">
-                        {(entry.accuracy * 100).toFixed(1)}%
+                        {(entry.accuracy).toFixed(1)}%
                       </td>
                     </tr>
                   ))}
