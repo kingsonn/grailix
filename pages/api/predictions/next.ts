@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabaseClient";
 /**
  * GET /api/predictions/next
  * Fetch the next pending prediction that user hasn't swiped
+ * Only returns predictions where betting_close is in the future
  */
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "GET") {
@@ -68,7 +69,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .from("predictions")
       .select("id, prediction_text, source_name, source_category, asset, asset_type, raw_text, expiry_timestamp, betting_close, direction, reference_type, sentiment_yes, sentiment_no")
       .eq("status", "pending")
-      .gt("expiry_timestamp", new Date().toISOString())
+      .gt("betting_close", new Date().toISOString())
       .order("created_timestamp", { ascending: true });
 
     // Filter by asset_type if not 'all'

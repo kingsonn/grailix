@@ -418,9 +418,48 @@ export default function PredictClient() {
           </div>
         )}
 
-        {/* Error Message */}
-        {error && (
-          <div className="bg-loss/10 border border-loss rounded-xl p-4 mb-6 text-loss">
+        {/* Empty State - No Predictions Available */}
+        {isConnected && user && !isLoading && !prediction && (
+          <div className="bg-void-black border border-grail/30 rounded-lg overflow-hidden shadow-xl">
+            <div className="bg-gradient-to-r from-void-graphite to-void-graphite/80 border-b border-grail/30 px-4 py-2">
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-auric animate-pulse shadow-lg shadow-auric/50"></div>
+                <span className="text-gray-400 text-xs font-mono tracking-wider">NO_PREDICTIONS_AVAILABLE</span>
+              </div>
+            </div>
+            <div className="p-8 sm:p-12 text-center">
+              <div className="text-6xl sm:text-7xl mb-6">📭</div>
+              <h3 className="text-xl sm:text-2xl font-bold text-white mb-3 font-mono">
+                NO_ACTIVE_PREDICTIONS
+              </h3>
+              <p className="text-gray-400 mb-6 font-mono text-sm">
+                {category === "all" 
+                  ? "No predictions available at the moment. Check back soon!"
+                  : `No ${category.toUpperCase()} predictions available. Try a different category.`}
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                {category !== "all" && (
+                  <button
+                    onClick={() => setCategory("all")}
+                    className="bg-gradient-to-br from-grail to-grail/80 hover:from-grail/90 hover:to-grail text-white font-bold font-mono py-3 px-6 rounded-lg transition-all shadow-lg shadow-grail/20 hover:shadow-grail/40"
+                  >
+                    VIEW_ALL_CATEGORIES
+                  </button>
+                )}
+                <Link
+                  href="/predictions"
+                  className="bg-gradient-to-br from-void-graphite to-grail/5 hover:from-grail/10 hover:to-grail/20 border border-grail/30 hover:border-grail/50 text-white font-bold font-mono py-3 px-6 rounded-lg transition-all inline-block"
+                >
+                  VIEW_ALL_PREDICTIONS
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Error Message (for actual errors, not empty state) */}
+        {error && prediction && (
+          <div className="bg-loss/10 border border-loss rounded-xl p-4 mb-6 text-loss font-mono text-sm">
             ⚠️ {error}
           </div>
         )}

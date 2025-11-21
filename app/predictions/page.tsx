@@ -157,9 +157,44 @@ export default function PredictionsPage() {
 
         {/* Empty State */}
         {!isLoading && predictions.length === 0 && (
-          <div className="bg-void-black border border-grail/30 rounded-lg p-8 text-center">
-            <p className="text-4xl mb-4">📭</p>
-            <p className="text-gray-400 font-mono">NO_{activeTab.toUpperCase()}_PREDICTIONS_FOUND</p>
+          <div className="bg-void-black border border-grail/30 rounded-lg overflow-hidden shadow-xl">
+            <div className="bg-gradient-to-r from-void-graphite to-void-graphite/80 border-b border-grail/30 px-4 py-2">
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-auric animate-pulse shadow-lg shadow-auric/50"></div>
+                <span className="text-gray-400 text-xs font-mono tracking-wider">EMPTY_STATE</span>
+              </div>
+            </div>
+            <div className="p-8 sm:p-12 text-center">
+              <div className="text-6xl sm:text-7xl mb-6">
+                {activeTab === "active" ? "📭" : activeTab === "expired" ? "⏰" : "✅"}
+              </div>
+              <h3 className="text-xl sm:text-2xl font-bold text-white mb-3 font-mono">
+                NO_{activeTab.toUpperCase()}_PREDICTIONS
+              </h3>
+              <p className="text-gray-400 mb-6 font-mono text-sm max-w-md mx-auto">
+                {activeTab === "active" 
+                  ? "No active predictions at the moment. New predictions are added regularly!"
+                  : activeTab === "expired"
+                  ? "No expired predictions waiting for resolution. Check back later!"
+                  : "No resolved predictions yet. Predictions will appear here once they're settled."}
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                {activeTab !== "active" && (
+                  <button
+                    onClick={() => setActiveTab("active")}
+                    className="bg-gradient-to-br from-neon to-neon/80 hover:from-neon/90 hover:to-neon text-void-black font-bold font-mono py-3 px-6 rounded-lg transition-all shadow-lg shadow-neon/20 hover:shadow-neon/40"
+                  >
+                    VIEW_ACTIVE
+                  </button>
+                )}
+                <button
+                  onClick={() => router.push("/")}
+                  className="bg-gradient-to-br from-void-graphite to-grail/5 hover:from-grail/10 hover:to-grail/20 border border-grail/30 hover:border-grail/50 text-white font-bold font-mono py-3 px-6 rounded-lg transition-all"
+                >
+                  BACK_TO_DASHBOARD
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
