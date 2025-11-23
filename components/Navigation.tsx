@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useAccount } from "wagmi";
 import WalletControl from "./WalletControl";
@@ -28,7 +29,16 @@ export default function Navigation() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="flex items-center justify-between h-16">
           {/* Logo - Terminal Style */}
-          <Link href="/" className="flex items-center group">
+          <Link href="/" className="flex items-center gap-1.5 group">
+            <div className="relative w-6 h-6 sm:w-8 sm:h-8 transition-transform group-hover:scale-110">
+              <Image
+                src="/logo.png"
+                alt="Grailix Logo"
+                fill
+                className="object-contain"
+                priority
+              />
+            </div>
             <h1 className="text-xl sm:text-2xl font-black font-mono tracking-tight bg-grail-gradient bg-clip-text text-transparent">
               GRAILIX
             </h1>

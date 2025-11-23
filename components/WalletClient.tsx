@@ -180,19 +180,44 @@ export default function WalletClient() {
         </button>
 
         {!isConnected && (
-          <div className="bg-void-black border border-grail/30 rounded-lg overflow-hidden shadow-xl p-8 sm:p-12 text-center">
-            <div className="bg-gradient-to-r from-void-graphite to-void-graphite/80 border-b border-grail/30 px-4 py-2 mb-6 -mx-8 sm:-mx-12 -mt-8 sm:-mt-12">
+          <div className="bg-void-black border border-grail/30 rounded-lg overflow-hidden shadow-xl">
+            <div className="bg-gradient-to-r from-void-graphite to-void-graphite/80 border-b border-grail/30 px-4 py-2 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-loss animate-pulse shadow-lg shadow-loss/50"></div>
-                <span className="text-gray-400 text-xs font-mono tracking-wider">CONNECTION_REQUIRED</span>
+                <div className="w-1.5 h-1.5 rounded-full bg-grail animate-pulse shadow-lg shadow-grail/50"></div>
+                <span className="text-gray-400 text-xs font-mono tracking-wider">WALLET_AUTH</span>
+              </div>
+              <div className="flex items-center gap-2 bg-grail/10 px-2.5 py-1 rounded-full border border-grail/30">
+                <div className="w-1.5 h-1.5 rounded-full bg-grail animate-pulse shadow-lg shadow-grail/50"></div>
+                <span className="text-grail-light text-xs font-mono font-bold">REQUIRED</span>
               </div>
             </div>
-            <div className="text-6xl mb-4">💰</div>
-            <h2 className="text-2xl font-bold mb-3 font-mono">CONNECT_WALLET</h2>
-            <p className="text-gray-400 mb-6 font-mono text-sm">
-              {'>'} Initialize wallet connection to access fund management
-            </p>
-            <WalletConnectButton />
+            
+            <div className="p-8 md:p-12">
+              <div className="max-w-md mx-auto bg-gradient-to-br from-grail/5 to-grail/10 border border-grail/30 rounded-lg p-6 md:p-8">
+                <div className="text-center mb-6">
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-lg bg-grail/10 border border-grail/40 flex items-center justify-center shadow-lg shadow-grail/20">
+                    <span className="text-3xl">🔐</span>
+                  </div>
+                  <h2 className="text-2xl font-black mb-2 text-white font-mono">CONNECT_WALLET</h2>
+                  <p className="text-gray-400 text-sm font-mono leading-relaxed">
+                    Initialize secure connection to access fund management
+                  </p>
+                </div>
+                
+                <WalletConnectButton />
+                
+                <div className="mt-6 pt-6 border-t border-grail/20 space-y-2">
+                  <div className="flex items-center gap-2 text-xs font-mono text-gray-400">
+                    <div className="w-1 h-1 rounded-full bg-profit"></div>
+                    <span>Deposit and withdraw funds</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs font-mono text-gray-400">
+                    <div className="w-1 h-1 rounded-full bg-auric"></div>
+                    <span>Manage your balance</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 

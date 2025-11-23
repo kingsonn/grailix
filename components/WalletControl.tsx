@@ -1,6 +1,7 @@
 "use client";
 
 import { useAccount, useDisconnect } from "wagmi";
+import { useRouter } from "next/navigation";
 
 /**
  * WalletControl - Displays connected wallet and disconnect button
@@ -9,14 +10,21 @@ import { useAccount, useDisconnect } from "wagmi";
 export default function WalletControl() {
   const { address, isConnected } = useAccount();
   const { disconnect } = useDisconnect();
+  const router = useRouter();
 
   if (!isConnected || !address) return null;
 
   const shortAddress = `${address.slice(0, 6)}...${address.slice(-4)}`;
 
+  const handleDisconnect = () => {
+    disconnect();
+    // Redirect to home page after disconnection
+    router.push("/");
+  };
+
   return (
     <button
-      onClick={() => disconnect()}
+      onClick={handleDisconnect}
       className="flex items-center gap-2 text-xs sm:text-sm px-3 sm:px-4 py-2 bg-loss/10 hover:bg-loss/20 text-loss border border-loss/30 hover:border-loss/50 rounded-lg transition-all font-mono shadow-lg"
       title={`Disconnect ${address}`}
     >

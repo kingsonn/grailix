@@ -6,6 +6,7 @@ import { useUser } from "@/lib/useUser";
 import WalletConnectButton from "@/components/WalletConnectButton";
 import AppLayout from "@/components/AppLayout";
 import Link from "next/link";
+import { useToast } from "@/components/ToastContainer";
 
 interface Prediction {
   id: number;
@@ -22,9 +23,11 @@ interface Prediction {
 }
 
 export default function PredictClient() {
-  const { address, isConnected } = useAccount();
+  const { isConnected, address } = useAccount();
   const { user, isLoading: userLoading, refetch } = useUser();
+  const { showToast } = useToast();
   const [prediction, setPrediction] = useState<Prediction | null>(null);
+  const [nextPrediction, setNextPrediction] = useState<Prediction | null>(null); // Pre-fetch next card
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,13 +52,15 @@ export default function PredictClient() {
   }, [address, isConnected, refetch]);
 
   // Fetch next prediction with optional excluded IDs
-  const fetchNextPrediction = async (excludedIds?: number[]) => {
+  const fetchNextPrediction = async (excludedIds?: number[], isPreFetch: boolean = false) => {
     if (!user) return;
 
-    setError(null);
-    setBettingClosed(false);
-    setTimeToBettingClose("");
-    setTimeLeft("");
+    if (!isPreFetch) {
+      setError(null);
+      setBettingClosed(false);
+      setTimeToBettingClose("");
+      setTimeLeft("");
+    }
 
     try {
       // Use provided excludedIds or fall back to state
@@ -78,20 +83,43 @@ export default function PredictClient() {
           const resetData = await resetResponse.json();
           
           if (resetData.success) {
-            setPrediction(resetData.data.prediction);
+            if (isPreFetch) {
+              setNextPrediction(resetData.data.prediction);
+            } else {
+              setPrediction(resetData.data.prediction);
+            }
           } else {
-            setError(resetData.error || "No predictions available");
+            if (!isPreFetch) {
+              setError(resetData.error || "No predictions available");
+            }
           }
         } else {
-          setPrediction(newPrediction);
+          if (isPreFetch) {
+            setNextPrediction(newPrediction);
+          } else {
+            setPrediction(newPrediction);
+          }
         }
       } else {
-        setError(data.error || "Failed to fetch prediction");
+        if (!isPreFetch) {
+          setError(data.error || "Failed to fetch prediction");
+        }
       }
     } catch (err) {
       console.error("Error fetching prediction:", err);
-      setError("Failed to load prediction");
+      if (!isPreFetch) {
+        setError("Failed to load prediction");
+      }
     }
+  };
+
+  // Pre-fetch next prediction in background
+  const preFetchNext = async () => {
+    if (!user || !prediction) return;
+    
+    // Exclude current prediction and skipped ones
+    const excludeIds = [...skippedIds, prediction.id];
+    await fetchNextPrediction(excludeIds, true);
   };
 
   // Load prediction on mount or category change
@@ -111,6 +139,9 @@ export default function PredictClient() {
       const bettingCloseTime = prediction.betting_close ? new Date(prediction.betting_close).getTime() : 0;
       setBettingClosed(bettingCloseTime > 0 && now >= bettingCloseTime);
       setIsSubmitting(false); // Reset submitting state for new prediction
+      
+      // Pre-fetch next prediction
+      preFetchNext();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prediction?.id]);
@@ -184,17 +215,26 @@ export default function PredictClient() {
   // Handle skip - add to skipped list and move to next prediction
   const handleSkip = () => {
     if (prediction) {
-      // Check if already in skipped list to prevent duplicates
       const currentId = prediction.id;
-      setSkippedIds(prev => {
-        if (prev.includes(currentId)) {
-          return prev; // Already skipped, don't add again
-        }
-        const newSkippedIds = [...prev, currentId];
-        // Pass the updated IDs directly to avoid stale closure
-        fetchNextPrediction(newSkippedIds);
-        return newSkippedIds;
-      });
+      
+      // INSTANTLY move to next card (use pre-fetched or fetch new)
+      if (nextPrediction) {
+        // Use pre-fetched card for instant transition
+        setPrediction(nextPrediction);
+        setNextPrediction(null);
+        setSkippedIds(prev => [...prev, currentId]);
+      } else {
+        // Fallback: fetch if no pre-fetch available
+        setSkippedIds(prev => {
+          if (prev.includes(currentId)) {
+            return prev; // Already skipped, don't add again
+          }
+          const newSkippedIds = [...prev, currentId];
+          // Pass the updated IDs directly to avoid stale closure
+          fetchNextPrediction(newSkippedIds);
+          return newSkippedIds;
+        });
+      }
     }
     setSelectedPosition(null);
   };
@@ -288,17 +328,33 @@ export default function PredictClient() {
   const handleStake = async (position: "YES" | "NO") => {
     if (!user || !prediction || isSubmitting) return;
 
+    // Store current prediction info for toast
+    const currentQuestion = prediction.prediction_text;
+    const currentPredictionId = prediction.id;
+
+    // INSTANTLY move to next card (use pre-fetched or fetch new)
+    setSelectedPosition(position);
     setIsSubmitting(true);
     setError(null);
-    setSelectedPosition(position);
+    
+    if (nextPrediction) {
+      // Use pre-fetched card for instant transition
+      setPrediction(nextPrediction);
+      setNextPrediction(null);
+    } else {
+      // Fallback: fetch if no pre-fetch available
+      const excludeIds = [...skippedIds, currentPredictionId];
+      fetchNextPrediction(excludeIds, false);
+    }
 
+    // Submit stake in background
     try {
       const response = await fetch("/api/predictions/stake", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           wallet_address: user.wallet_address,
-          prediction_id: prediction.id,
+          prediction_id: currentPredictionId,
           position: position,
           stake_credits: stakeAmount,
         }),
@@ -307,17 +363,35 @@ export default function PredictClient() {
       const data = await response.json();
 
       if (data.success) {
-        setSelectedPosition(null);
-        fetchNextPrediction();
-        refetch();
+        // Show success toast with question and answer
+        showToast(
+          "success",
+          `Predicted: ${position}`,
+          currentQuestion,
+          5000
+        );
+        // Note: Not calling refetch() to avoid re-render during voting flow
+        // Balance will update on next page navigation or manual refresh
       } else {
-        setError(data.error || "Failed to submit stake");
-        setIsSubmitting(false);
+        // Show error toast
+        showToast(
+          "error",
+          "Prediction Failed",
+          data.error || "Failed to submit stake",
+          5000
+        );
       }
     } catch (err) {
       console.error("Error staking:", err);
-      setError("Failed to submit stake");
+      showToast(
+        "error",
+        "Prediction Failed",
+        "Network error. Please try again.",
+        5000
+      );
+    } finally {
       setIsSubmitting(false);
+      setSelectedPosition(null);
     }
   };
 
@@ -466,13 +540,44 @@ export default function PredictClient() {
 
         {/* Wallet Connection */}
         {!isConnected && (
-          <div className="grail-glass rounded-2xl p-12 text-center">
-            <div className="text-6xl mb-4">🔐</div>
-            <h2 className="text-2xl font-bold mb-3">Connect to Trade</h2>
-            <p className="text-gray-400 mb-6">
-              Connect your wallet to access professional prediction markets
-            </p>
-            <WalletConnectButton />
+          <div className="bg-void-black border border-grail/30 rounded-lg overflow-hidden shadow-xl">
+            <div className="bg-gradient-to-r from-void-graphite to-void-graphite/80 border-b border-grail/30 px-4 py-2 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-grail animate-pulse shadow-lg shadow-grail/50"></div>
+                <span className="text-gray-400 text-xs font-mono tracking-wider">WALLET_AUTH</span>
+              </div>
+              <div className="flex items-center gap-2 bg-grail/10 px-2.5 py-1 rounded-full border border-grail/30">
+                <div className="w-1.5 h-1.5 rounded-full bg-grail animate-pulse shadow-lg shadow-grail/50"></div>
+                <span className="text-grail-light text-xs font-mono font-bold">REQUIRED</span>
+              </div>
+            </div>
+            
+            <div className="p-8 md:p-12">
+              <div className="max-w-md mx-auto bg-gradient-to-br from-grail/5 to-grail/10 border border-grail/30 rounded-lg p-6 md:p-8">
+                <div className="text-center mb-6">
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-lg bg-grail/10 border border-grail/40 flex items-center justify-center shadow-lg shadow-grail/20">
+                    <span className="text-3xl">🔐</span>
+                  </div>
+                  <h2 className="text-2xl font-black mb-2 text-white font-mono">CONNECT_WALLET</h2>
+                  <p className="text-gray-400 text-sm font-mono leading-relaxed">
+                    Initialize secure connection to access prediction markets
+                  </p>
+                </div>
+                
+                <WalletConnectButton />
+                
+                <div className="mt-6 pt-6 border-t border-grail/20 space-y-2">
+                  <div className="flex items-center gap-2 text-xs font-mono text-gray-400">
+                    <div className="w-1 h-1 rounded-full bg-profit"></div>
+                    <span>Predict and earn rewards</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs font-mono text-gray-400">
+                    <div className="w-1 h-1 rounded-full bg-auric"></div>
+                    <span>Instant resolution</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 

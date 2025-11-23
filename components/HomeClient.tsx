@@ -7,6 +7,7 @@ import WalletConnectButton from "@/components/WalletConnectButton";
 import ClaimFaucetButton from "@/components/ClaimFaucetButton";
 import AppLayout from "@/components/AppLayout";
 import Link from "next/link";
+import Image from "next/image";
 
 export default function HomeClient() {
   const { address, isConnected } = useAccount();
@@ -44,11 +45,22 @@ export default function HomeClient() {
               <div className="p-6 md:p-8">
                 {/* Logo & Tagline */}
                 <div className="text-center mb-8">
-                  <h1 className="text-5xl md:text-6xl font-black font-mono mb-3 tracking-tight">
-                    <span className="bg-grail-gradient bg-clip-text text-transparent drop-shadow-[0_0_30px_rgba(168,85,247,0.3)]">
-                      GRAILIX
-                    </span>
-                  </h1>
+                  <div className="flex items-center justify-center gap-3 mb-3">
+                    <div className="relative w-12 h-12 md:w-16 md:h-16">
+                      <Image
+                        src="/logo.png"
+                        alt="Grailix Logo"
+                        fill
+                        className="object-contain"
+                        priority
+                      />
+                    </div>
+                    <h1 className="text-5xl md:text-6xl font-black font-mono tracking-tight">
+                      <span className="bg-grail-gradient bg-clip-text text-transparent drop-shadow-[0_0_30px_rgba(168,85,247,0.3)]">
+                        GRAILIX
+                      </span>
+                    </h1>
+                  </div>
                   <p className="text-xl md:text-2xl font-bold text-grail-pale mb-2 font-mono">
                     Outsmart the Market
                   </p>
@@ -247,6 +259,7 @@ export default function HomeClient() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   <Link
                     href="/predictions"
+                    prefetch={false}
                     className="group bg-gradient-to-br from-void-graphite to-neon/5 hover:from-neon/10 hover:to-neon/20 border border-grail/20 hover:border-neon/50 rounded-lg p-4 transition-all hover:shadow-lg hover:shadow-neon/20"
                   >
                     <div className="text-center">
@@ -257,6 +270,7 @@ export default function HomeClient() {
                   
                   <Link
                     href="/history"
+                    prefetch={false}
                     className="group bg-gradient-to-br from-void-graphite to-grail/5 hover:from-grail/10 hover:to-grail/20 border border-grail/20 hover:border-grail/50 rounded-lg p-4 transition-all hover:shadow-lg hover:shadow-grail/20"
                   >
                     <div className="text-center">
@@ -267,6 +281,7 @@ export default function HomeClient() {
                   
                   <Link
                     href="/leaderboard"
+                    prefetch={false}
                     className="group bg-gradient-to-br from-void-graphite to-auric/5 hover:from-auric/10 hover:to-auric/20 border border-grail/20 hover:border-auric/50 rounded-lg p-4 transition-all hover:shadow-lg hover:shadow-auric/20"
                   >
                     <div className="text-center">

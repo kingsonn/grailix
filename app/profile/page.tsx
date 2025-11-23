@@ -22,9 +22,33 @@ export default function ProfilePage() {
 
         {/* Wallet Connection */}
         {!isConnected && (
-          <div className="bg-gray-800 rounded-lg p-6 mb-6 text-center">
-            <p className="text-gray-400 mb-4">Connect your wallet to view profile</p>
-            <WalletConnectButton />
+          <div className="bg-void-black border border-grail/30 rounded-lg overflow-hidden shadow-xl mb-6">
+            <div className="bg-gradient-to-r from-void-graphite to-void-graphite/80 border-b border-grail/30 px-4 py-2 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-grail animate-pulse shadow-lg shadow-grail/50"></div>
+                <span className="text-gray-400 text-xs font-mono tracking-wider">WALLET_AUTH</span>
+              </div>
+              <div className="flex items-center gap-2 bg-grail/10 px-2.5 py-1 rounded-full border border-grail/30">
+                <div className="w-1.5 h-1.5 rounded-full bg-grail animate-pulse shadow-lg shadow-grail/50"></div>
+                <span className="text-grail-light text-xs font-mono font-bold">REQUIRED</span>
+              </div>
+            </div>
+            
+            <div className="p-8">
+              <div className="max-w-md mx-auto bg-gradient-to-br from-grail/5 to-grail/10 border border-grail/30 rounded-lg p-6">
+                <div className="text-center mb-6">
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-lg bg-grail/10 border border-grail/40 flex items-center justify-center shadow-lg shadow-grail/20">
+                    <span className="text-3xl">🔐</span>
+                  </div>
+                  <h2 className="text-2xl font-black mb-2 text-white font-mono">CONNECT_WALLET</h2>
+                  <p className="text-gray-400 text-sm font-mono leading-relaxed">
+                    Initialize secure connection to view profile
+                  </p>
+                </div>
+                
+                <WalletConnectButton />
+              </div>
+            </div>
           </div>
         )}
 
