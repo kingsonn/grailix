@@ -652,19 +652,19 @@ export default function PredictClient() {
                   {/* Sentiment Bar */}
                   <div className="relative h-2 bg-void-black rounded-full overflow-hidden mb-3 border border-grail/20">
                     <div
-                      className="absolute left-0 top-0 h-full bg-profit transition-all duration-500"
-                      style={{ width: `${yesPercent}%` }}
+                      className="absolute left-0 top-0 h-full bg-loss transition-all duration-500"
+                      style={{ width: `${noPercent}%` }}
                     />
                     <div
-                      className="absolute right-0 top-0 h-full bg-loss transition-all duration-500"
-                      style={{ width: `${noPercent}%` }}
+                      className="absolute right-0 top-0 h-full bg-profit transition-all duration-500"
+                      style={{ width: `${yesPercent}%` }}
                     />
                   </div>
 
                   {/* Percentages */}
                   <div className="flex justify-between text-xs font-mono font-bold">
-                    <span className="profit-text">{yesPercent}% YES</span>
                     <span className="loss-text">{noPercent}% NO</span>
+                    <span className="profit-text">{yesPercent}% YES</span>
                   </div>
                 </div>
 
@@ -672,14 +672,14 @@ export default function PredictClient() {
                 <div className="p-4">
                   <div className="grid grid-cols-3 gap-3">
                     <button
-                      onClick={() => handleStake("YES")}
+                      onClick={() => handleStake("NO")}
                       disabled={bettingClosed || isSubmitting}
-                      className="group relative bg-gradient-to-br from-profit to-profit/80 hover:from-profit/90 hover:to-profit/70 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-6 rounded-lg transition-all hover:scale-[1.02] border border-profit/50 shadow-lg shadow-profit/20 font-mono overflow-hidden"
+                      className="group relative bg-gradient-to-br from-loss to-loss/80 hover:from-loss/90 hover:to-loss/70 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-6 rounded-lg transition-all hover:scale-[1.02] border border-loss/50 shadow-lg shadow-loss/20 font-mono overflow-hidden"
                     >
-                      <div className="absolute inset-0 bg-profit/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                      <div className="absolute inset-0 bg-loss/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                       <div className="relative flex flex-col items-center justify-center gap-1">
                         <div className="w-2 h-2 rounded-full bg-white/80 group-hover:bg-white transition-colors"></div>
-                        <div className="text-base tracking-wider">{isSubmitting && selectedPosition === "YES" ? "..." : "YES"}</div>
+                        <div className="text-base tracking-wider">{isSubmitting && selectedPosition === "NO" ? "..." : "NO"}</div>
                       </div>
                     </button>
                     
@@ -696,14 +696,14 @@ export default function PredictClient() {
                     </button>
                     
                     <button
-                      onClick={() => handleStake("NO")}
+                      onClick={() => handleStake("YES")}
                       disabled={bettingClosed || isSubmitting}
-                      className="group relative bg-gradient-to-br from-loss to-loss/80 hover:from-loss/90 hover:to-loss/70 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-6 rounded-lg transition-all hover:scale-[1.02] border border-loss/50 shadow-lg shadow-loss/20 font-mono overflow-hidden"
+                      className="group relative bg-gradient-to-br from-profit to-profit/80 hover:from-profit/90 hover:to-profit/70 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-6 rounded-lg transition-all hover:scale-[1.02] border border-profit/50 shadow-lg shadow-profit/20 font-mono overflow-hidden"
                     >
-                      <div className="absolute inset-0 bg-loss/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                      <div className="absolute inset-0 bg-profit/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                       <div className="relative flex flex-col items-center justify-center gap-1">
                         <div className="w-2 h-2 rounded-full bg-white/80 group-hover:bg-white transition-colors"></div>
-                        <div className="text-base tracking-wider">{isSubmitting && selectedPosition === "NO" ? "..." : "NO"}</div>
+                        <div className="text-base tracking-wider">{isSubmitting && selectedPosition === "YES" ? "..." : "YES"}</div>
                       </div>
                     </button>
                   </div>
@@ -713,16 +713,16 @@ export default function PredictClient() {
                 <div className="p-4 bg-void-graphite/30 border-t border-grail/20">
                   <div className="space-y-2 text-xs font-mono text-gray-500">
                     <div className="flex items-center gap-2">
-                      <div className="w-1 h-1 rounded-full bg-profit"></div>
-                      <span>YES: Predict outcome will occur</span>
-                    </div>
-                    <div className="flex items-center gap-2">
                       <div className="w-1 h-1 rounded-full bg-loss"></div>
                       <span>NO: Predict outcome won&apos;t occur</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="w-1 h-1 rounded-full bg-gray-500"></div>
                       <span>SKIP: Pass to next prediction</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-1 h-1 rounded-full bg-profit"></div>
+                      <span>YES: Predict outcome will occur</span>
                     </div>
                   </div>
                 </div>
