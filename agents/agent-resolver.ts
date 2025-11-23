@@ -18,6 +18,9 @@
 import "dotenv/config";
 import crypto from "crypto";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { createWalletClient, http, parseUnits } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
+import { bscTestnet } from "viem/chains";
 
 // -------------------- Types --------------------
 
@@ -88,7 +91,30 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
 
 const supabase: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
-const PLATFORM_FEE = Number(process.env.PLATFORM_FEE ?? 0.02); // 2%
+const PLATFORM_FEE = 0.05; // 5% platform fee
+const DECIMAL_PRECISION = 6; // 6 decimal places for payouts
+
+// Vault contract configuration
+const VAULT_ADDRESS = process.env.NEXT_PUBLIC_VAULT_ADDRESS as `0x${string}`;
+
+// Ensure private key has 0x prefix
+const rawPrivateKey = process.env.VAULT_PRIVATE_KEY;
+const VAULT_PRIVATE_KEY = rawPrivateKey 
+  ? (rawPrivateKey.startsWith('0x') ? rawPrivateKey : `0x${rawPrivateKey}`) as `0x${string}`
+  : undefined;
+
+const GrailixVault_ABI = [
+  {
+    inputs: [
+      { name: "predictionId", type: "uint256" },
+      { name: "outcomeHash", type: "bytes32" },
+    ],
+    name: "storeOutcomeHash",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+] as const;
 
 // -------------------- Price Fetchers --------------------
 
@@ -101,7 +127,7 @@ async function fetchYahooPrice(symbol: string): Promise<{
   previous_close?: number;
 } | null> {
   try {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1m`;
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?region=US&lang=en-US&interval=1m`;
     const response = await fetch(url);
 
     if (!response.ok) {
@@ -151,6 +177,7 @@ function getOpeningPrice(data: any): number | undefined {
 
   return undefined;
 }
+
 /**
  * Fetch crypto price from Binance
  */
@@ -462,27 +489,50 @@ async function applyPayouts(
     return;
   }
 
-  // Calculate payouts
-  const fee = Math.floor(losingPool * PLATFORM_FEE);
-  const distributable = losingPool - fee;
+  // Calculate payouts with decimal precision
+  const fee = parseFloat((losingPool * PLATFORM_FEE).toFixed(DECIMAL_PRECISION));
+  const distributable = parseFloat((losingPool - fee).toFixed(DECIMAL_PRECISION));
 
   console.log(`💸 Fee=${fee}, Distributable=${distributable}`);
 
   const winners = stakes.filter((s) => s.position === outcome);
+  
+  // Calculate all payouts first to ensure total doesn't exceed distributable
+  const payoutCalculations: Array<{ winner: any; stake: number; payout: number }> = [];
+  let totalPayouts = 0;
 
   for (const winner of winners) {
     const stake = winner.stake_credits;
     let payout: number;
-    console.log(`  → User ${winner.user_id}: stake=${stake}`);
+    
     if (losingPool === 0) {
       // No opposite liquidity - return stake only
       payout = stake;
     } else {
-      // Pari-mutuel formula
+      // Pari-mutuel formula with decimal precision
       const share = stake / winningPool;
-      payout = Math.floor(stake + share * distributable);
+      const rawPayout = stake + share * distributable;
+      // Floor to 6 decimals
+      payout = Math.floor(rawPayout * Math.pow(10, DECIMAL_PRECISION)) / Math.pow(10, DECIMAL_PRECISION);
     }
+    
+    payoutCalculations.push({ winner, stake, payout });
+    totalPayouts += payout;
+  }
+  
+  // Verify total payouts don't exceed distributable + winning pool
+  const maxAllowable = winningPool + distributable;
+  if (totalPayouts > maxAllowable) {
+    console.warn(`⚠️ Total payouts (${totalPayouts}) exceed allowable (${maxAllowable}). Adjusting...`);
+    // Scale down proportionally
+    const scaleFactor = maxAllowable / totalPayouts;
+    payoutCalculations.forEach(calc => {
+      calc.payout = Math.floor(calc.payout * scaleFactor * Math.pow(10, DECIMAL_PRECISION)) / Math.pow(10, DECIMAL_PRECISION);
+    });
+  }
 
+  // Apply payouts
+  for (const { winner, stake, payout } of payoutCalculations) {
     console.log(`  → User ${winner.user_id}: stake=${stake}, payout=${payout}`);
 
     // Update user_stakes with payout
@@ -496,12 +546,12 @@ async function applyPayouts(
       continue;
     }
 
-    // Increment user balance via RPC (retry up to 2 times)
+    // Increment user balance via RPC with decimal amount (retry up to 3 times)
     let success = false;
     for (let attempt = 1; attempt <= 3; attempt++) {
       const { error: rpcError } = await supabase.rpc("increment_user_balance", {
         user_id_input: winner.user_id,
-        amount: payout,
+        amount: payout, // Now accepts numeric/decimal
       });
 
       if (!rpcError) {
@@ -569,27 +619,57 @@ async function resolvePrediction(prediction: PredictionRow): Promise<void> {
 
     // Step 3: Compute hashes
     const { predictionHash, outcomeHash } = computeHashes(prediction, report);
+    console.log(`🔐 Computed hashes - Prediction: ${predictionHash.slice(0, 10)}..., Outcome: ${outcomeHash.slice(0, 10)}...`);
 
-    // Step 4: Apply payouts
+    // Step 4: Store outcome hash on blockchain
+    let outcomeTxHash: string | null = null;
+    try {
+      console.log(`📝 Storing outcome hash on blockchain for prediction ${id}...`);
+      
+      if (!VAULT_PRIVATE_KEY || !VAULT_ADDRESS) {
+        throw new Error("Vault private key or address not configured");
+      }
+
+      const account = privateKeyToAccount(VAULT_PRIVATE_KEY);
+      const walletClient = createWalletClient({
+        account,
+        chain: bscTestnet,
+        transport: http(),
+      });
+
+      const hash = await walletClient.writeContract({
+        address: VAULT_ADDRESS,
+        abi: GrailixVault_ABI,
+        functionName: "storeOutcomeHash",
+        args: [BigInt(id), `0x${outcomeHash}` as `0x${string}`],
+      });
+
+      outcomeTxHash = hash;
+      console.log(`✅ Outcome hash stored on blockchain. Tx: ${hash}`);
+    } catch (error) {
+      console.error(`❌ Failed to store outcome hash on blockchain:`, error);
+      // Continue with resolution even if blockchain storage fails
+    }
+
+    // Step 5: Apply payouts
     await applyPayouts(id, outcome);
 
-    // Step 5: Update prediction with resolution
+    // Step 6: Update prediction status
     const { error: updateError } = await supabase
       .from("predictions")
       .update({
         status: "resolved",
         outcome_value: outcome,
-        resolved_price: priceData.final_price,
+        resolved_price: report.final_price,
         resolved_timestamp: new Date().toISOString(),
         resolution_report: report,
-        prediction_hash: predictionHash,
-        outcome_hash: outcomeHash,
+        // prediction_hash is preserved (set by agent-standardizer)
+        outcome_hash: outcomeTxHash, // Store blockchain tx hash instead of hash itself
       })
       .eq("id", id);
 
     if (updateError) {
       console.error(`❌ Failed to update prediction ${id}:`, updateError);
-      return;
     }
 
     console.log(`✅ Prediction ${id} resolved: outcome=${outcome}, price=${priceData.final_price}`);

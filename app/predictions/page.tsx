@@ -23,6 +23,8 @@ type Prediction = {
   sentiment_yes: number;
   sentiment_no: number;
   created_timestamp: string;
+  prediction_hash?: string | null;
+  outcome_hash?: string | null;
 };
 
 type TabType = "active" | "expired" | "resolved";
@@ -280,6 +282,24 @@ export default function PredictionsPage() {
                   </div>
                 </div>
 
+                {/* Prediction Hash (Active predictions) */}
+                {pred.status === "pending" && pred.prediction_hash && (
+                  <div className="bg-grail/10 border border-grail/30 rounded-lg p-3 mb-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className="w-1 h-1 rounded-full bg-grail"></div>
+                      <p className="text-xs text-grail-light font-mono uppercase">Prediction_Hash_Tx</p>
+                    </div>
+                    <a
+                      href={`https://testnet.bscscan.com/tx/${pred.prediction_hash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-grail hover:text-grail-light font-mono break-all underline"
+                    >
+                      {pred.prediction_hash}
+                    </a>
+                  </div>
+                )}
+
 
                 {/* Resolved Info */}
                 {pred.status === "resolved" && (
@@ -301,10 +321,46 @@ export default function PredictionsPage() {
                       </div>
                     </div>
                     {pred.resolved_timestamp && (
-                      <p className="text-xs text-gray-500 font-mono">
+                      <p className="text-xs text-gray-500 font-mono mb-3">
                         RESOLVED: {new Date(pred.resolved_timestamp).toLocaleString()}
                       </p>
                     )}
+                    
+                    {/* Blockchain Hashes */}
+                    <div className="space-y-2 mt-3 pt-3 border-t border-grail/20">
+                      {pred.prediction_hash && (
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <div className="w-1 h-1 rounded-full bg-grail"></div>
+                            <p className="text-xs text-grail-light font-mono uppercase">Prediction_Hash_Tx</p>
+                          </div>
+                          <a
+                            href={`https://testnet.bscscan.com/tx/${pred.prediction_hash}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-grail hover:text-grail-light font-mono break-all underline block"
+                          >
+                            {pred.prediction_hash}
+                          </a>
+                        </div>
+                      )}
+                      {pred.outcome_hash && (
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <div className="w-1 h-1 rounded-full bg-profit"></div>
+                            <p className="text-xs text-profit font-mono uppercase">Outcome_Hash_Tx</p>
+                          </div>
+                          <a
+                            href={`https://testnet.bscscan.com/tx/${pred.outcome_hash}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-profit hover:text-profit-light font-mono break-all underline block"
+                          >
+                            {pred.outcome_hash}
+                          </a>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
 

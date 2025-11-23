@@ -21,6 +21,10 @@ import {
   stockExpiryDecision,
   cryptoExpiryDecision,
 } from "./market-hours/index";
+import crypto from "crypto";
+import { createWalletClient, http } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
+import { bscTestnet } from "viem/chains";
 
 if (!process.env.GROQ_API_KEY) throw new Error("Missing GROQ_API_KEY");
 if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_SERVICE_KEY)
@@ -32,6 +36,37 @@ const supabase = createClient(
 );
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+
+// Vault contract configuration
+const VAULT_ADDRESS = process.env.NEXT_PUBLIC_VAULT_ADDRESS as `0x${string}`;
+
+// Ensure private key has 0x prefix
+const rawPrivateKey = process.env.VAULT_PRIVATE_KEY;
+const VAULT_PRIVATE_KEY = rawPrivateKey 
+  ? (rawPrivateKey.startsWith('0x') ? rawPrivateKey : `0x${rawPrivateKey}`) as `0x${string}`
+  : undefined;
+
+const GrailixVault_ABI = [
+  {
+    inputs: [
+      { name: "predictionId", type: "uint256" },
+      { name: "predictionHash", type: "bytes32" },
+    ],
+    name: "storePredictionHash",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+] as const;
+
+// Helper functions for hashing
+function canonicalizeJSON(obj: any): string {
+  return JSON.stringify(obj, Object.keys(obj).sort());
+}
+
+function sha256(data: string): string {
+  return crypto.createHash("sha256").update(data, "utf8").digest("hex");
+}
 
 type Direction = "up" | "down" | "neutral";
 type SentimentStrength = "strong" | "weak" | "neutral";
@@ -316,7 +351,7 @@ async function processRow(row: {
     const { data: insertedPrediction, error: insertError } = await supabase
       .from("predictions")
       .insert(insertData)
-      .select("id")
+      .select("id, prediction_text, asset, reference_type, direction, created_price, expiry_timestamp, betting_close")
       .single();
 
     if (insertError) {
@@ -325,6 +360,63 @@ async function processRow(row: {
     }
 
     console.log(`✅ INSERTED predictionId=${insertedPrediction.id} ticker=${ticker} direction=${sentiment.direction} reference_type=${referenceType}`);
+
+    // Step 7.5: Compute prediction hash and store on blockchain
+    try {
+      console.log(`🔐 Computing prediction hash for prediction ${insertedPrediction.id}...`);
+      
+      const predictionData = {
+        prediction_id: insertedPrediction.id,
+        prediction_text: insertedPrediction.prediction_text,
+        asset: insertedPrediction.asset,
+        reference_type: insertedPrediction.reference_type,
+        direction: insertedPrediction.direction,
+        created_price: insertedPrediction.created_price,
+        expiry_timestamp: insertedPrediction.expiry_timestamp,
+        betting_close: insertedPrediction.betting_close,
+      };
+
+      const predictionHash = sha256(canonicalizeJSON(predictionData));
+      console.log(`🔐 Prediction hash: ${predictionHash.slice(0, 10)}...`);
+
+      // Store on blockchain
+      if (!VAULT_PRIVATE_KEY || !VAULT_ADDRESS) {
+        console.warn(`⚠️ Vault private key or address not configured, skipping blockchain storage`);
+      } else {
+        console.log(`📝 Storing prediction hash on blockchain...`);
+        
+        const account = privateKeyToAccount(VAULT_PRIVATE_KEY);
+        const walletClient = createWalletClient({
+          account,
+          chain: bscTestnet,
+          transport: http(),
+        });
+
+        const hash = await walletClient.writeContract({
+          address: VAULT_ADDRESS,
+          abi: GrailixVault_ABI,
+          functionName: "storePredictionHash",
+          args: [BigInt(insertedPrediction.id), `0x${predictionHash}` as `0x${string}`],
+        });
+
+        console.log(`✅ Prediction hash stored on blockchain. Tx: ${hash}`);
+
+        // Update prediction with blockchain tx hash
+        const { error: updateHashError } = await supabase
+          .from("predictions")
+          .update({ prediction_hash: hash })
+          .eq("id", insertedPrediction.id);
+
+        if (updateHashError) {
+          console.error(`❌ Failed to update prediction_hash for ${insertedPrediction.id}:`, updateHashError);
+        } else {
+          console.log(`✅ Updated prediction_hash with tx: ${hash}`);
+        }
+      }
+    } catch (error) {
+      console.error(`❌ Failed to store prediction hash on blockchain:`, error);
+      // Continue even if blockchain storage fails
+    }
 
     // Step 8: Mark ai_raw_inputs row as processed
     const { error: updateError } = await supabase

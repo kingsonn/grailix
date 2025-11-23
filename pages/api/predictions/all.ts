@@ -48,7 +48,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         resolution_report,
         sentiment_yes,
         sentiment_no,
-        created_timestamp
+        created_timestamp,
+        prediction_hash,
+        outcome_hash
       `)
       .order("created_timestamp", { ascending: false })
       .limit(100);

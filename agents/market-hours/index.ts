@@ -173,8 +173,28 @@ export function stockExpiryDecision(now?: DateTimeType): {
   const currentTime = (now || DateTime.now()).setZone(TIMEZONE);
 
   if (!isMarketOpen(currentTime)) {
-    // Market closed - create open-type questions
-    const expiry = getNextMarketOpen(currentTime);
+    // Market closed - check if we're within 2 hours before next market open
+    const nextOpen = getNextMarketOpen(currentTime);
+    const minutesUntilOpen = nextOpen.diff(currentTime, "minutes").minutes;
+
+    if (minutesUntilOpen <= 120) {
+      // Within 2 hours of market open - expire at market close of that day
+      const openDate = nextOpen.setZone(TIMEZONE);
+      const closeInfo = getMarketCloseForDate(openDate);
+      
+      if (closeInfo) {
+        const expiry = closeInfo.close;
+        const bettingClose = expiry.minus({ minutes: 60 });
+        return {
+          expiry: expiry.toUTC(),
+          bettingClose: bettingClose.toUTC(),
+          questionType: "close",
+        };
+      }
+    }
+
+    // More than 2 hours before open - create open-type questions
+    const expiry = nextOpen;
     const bettingClose = expiry.minus({ minutes: 1 });
     return {
       expiry,
