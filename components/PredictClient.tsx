@@ -20,6 +20,7 @@ interface Prediction {
   reference_type?: string;
   sentiment_yes: number;
   sentiment_no: number;
+  created_price?: number | null;
 }
 
 export default function PredictClient() {
@@ -703,9 +704,19 @@ export default function PredictClient() {
                       </div>
                       <div>
                         <h3 className="text-xl font-black font-mono text-white">{prediction.asset}</h3>
-                        <p className="text-xs text-gray-500 uppercase tracking-wider font-mono">
-                          {prediction.asset_type || "Market"}
-                        </p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-xs text-gray-500 uppercase tracking-wider font-mono">
+                            {prediction.asset_type || "Market"}
+                          </p>
+                          {prediction.asset_type === "crypto" && prediction.created_price && (
+                            <>
+                              <span className="text-gray-600">•</span>
+                              <span className="text-xs text-auric font-bold font-mono tabular-nums">
+                                ${prediction.created_price.toFixed(2)}
+                              </span>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
                     <div className="text-right">

@@ -67,7 +67,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Fetch next available prediction
     let query = supabase
       .from("predictions")
-      .select("id, prediction_text, source_name, source_category, asset, asset_type, raw_text, expiry_timestamp, betting_close, direction, reference_type, sentiment_yes, sentiment_no")
+      .select("id, prediction_text, source_name, source_category, asset, asset_type, raw_text, expiry_timestamp, betting_close, direction, reference_type, sentiment_yes, sentiment_no, created_price")
       .eq("status", "pending")
       .gt("betting_close", new Date().toISOString())
       .order("created_timestamp", { ascending: true });
