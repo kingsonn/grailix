@@ -40,18 +40,21 @@ export default function PredictClient() {
   const [bettingClosed, setBettingClosed] = useState(false);
   const [skippedIds, setSkippedIds] = useState<number[]>([]); // Track skipped prediction IDs
   const [votedIds, setVotedIds] = useState<number[]>([]); // Track predictions being voted on
+  const [localBalance, setLocalBalance] = useState<number | null>(null); // Local balance for optimistic updates
+  const [isBalanceLoading, setIsBalanceLoading] = useState(false); // Balance loading state
   
   // Swipe gesture states
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
   const [touchCurrent, setTouchCurrent] = useState<{ x: number; y: number } | null>(null);
   const [isSwiping, setIsSwiping] = useState(false);
 
-  // Auto-refresh user data
+  // Auto-refresh user data on wallet connection
   useEffect(() => {
     if (isConnected && address) {
       refetch();
     }
-  }, [address, isConnected, refetch]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [address, isConnected]);
 
   // Fetch next prediction with optional excluded IDs
   const fetchNextPrediction = async (excludedIds?: number[], isPreFetch: boolean = false) => {
@@ -256,9 +259,6 @@ export default function PredictClient() {
 
   // Swipe gesture handlers
   const handleTouchStart = (e: React.TouchEvent) => {
-    // Prevent new swipes if already submitting
-    if (isSubmitting) return;
-    
     const touch = e.touches[0];
     setTouchStart({ x: touch.clientX, y: touch.clientY });
     setTouchCurrent({ x: touch.clientX, y: touch.clientY });
@@ -273,14 +273,6 @@ export default function PredictClient() {
 
   const handleTouchEnd = () => {
     if (!touchStart || !touchCurrent) {
-      setTouchStart(null);
-      setTouchCurrent(null);
-      setIsSwiping(false);
-      return;
-    }
-
-    // Prevent multiple swipes if already submitting
-    if (isSubmitting) {
       setTouchStart(null);
       setTouchCurrent(null);
       setIsSwiping(false);
@@ -353,7 +345,7 @@ export default function PredictClient() {
 
   // Handle stake submission with position parameter
   const handleStake = async (position: "YES" | "NO") => {
-    if (!user || !prediction || isSubmitting) return;
+    if (!user || !prediction) return;
 
     // Store current prediction info for toast
     const currentQuestion = prediction.prediction_text;
@@ -361,6 +353,11 @@ export default function PredictClient() {
 
     // Add to votedIds IMMEDIATELY to prevent showing again
     setVotedIds(prev => [...prev, currentPredictionId]);
+
+    // Optimistically update balance (subtract stake amount)
+    const currentBalance = localBalance ?? user.real_credits_balance;
+    setLocalBalance(currentBalance - stakeAmount);
+    setIsBalanceLoading(true);
 
     // INSTANTLY move to next card (use pre-fetched or fetch new)
     setSelectedPosition(position);
@@ -377,7 +374,11 @@ export default function PredictClient() {
       fetchNextPrediction(excludeIds, false);
     }
 
-    // Submit stake in background
+    // Clear isSubmitting immediately to allow next click
+    setIsSubmitting(false);
+    setSelectedPosition(null);
+
+    // Submit stake in background (don't block)
     try {
       const response = await fetch("/api/predictions/stake", {
         method: "POST",
@@ -400,8 +401,11 @@ export default function PredictClient() {
           currentQuestion,
           5000
         );
-        // Note: Not calling refetch() to avoid re-render during voting flow
-        // Balance will update on next page navigation or manual refresh
+        
+        // Stop loading after short delay (keep optimistic balance)
+        setTimeout(() => {
+          setIsBalanceLoading(false);
+        }, 500);
       } else {
         // Show error toast
         showToast(
@@ -410,6 +414,10 @@ export default function PredictClient() {
           data.error || "Failed to submit stake",
           5000
         );
+        
+        // Revert optimistic update on error
+        setLocalBalance(null);
+        setIsBalanceLoading(false);
       }
     } catch (err) {
       console.error("Error staking:", err);
@@ -419,9 +427,10 @@ export default function PredictClient() {
         "Network error. Please try again.",
         5000
       );
-    } finally {
-      setIsSubmitting(false);
-      setSelectedPosition(null);
+      
+      // Revert optimistic update on error
+      setLocalBalance(null);
+      setIsBalanceLoading(false);
     }
   };
 
@@ -769,7 +778,18 @@ export default function PredictClient() {
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-mono text-gray-500 uppercase">Your_Balance</span>
                     <div className="flex items-center gap-2">
-                      <span className="text-auric font-bold text-lg font-mono tabular-nums">{user.real_credits_balance.toFixed(3)}</span>
+                      {isBalanceLoading ? (
+                        <>
+                          <div className="inline-block animate-spin rounded-full h-4 w-4 border-2 border-auric border-t-transparent"></div>
+                          <span className="text-auric font-bold text-lg font-mono tabular-nums opacity-50">
+                            {(localBalance ?? user.real_credits_balance).toFixed(3)}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-auric font-bold text-lg font-mono tabular-nums">
+                          {(localBalance ?? user.real_credits_balance).toFixed(3)}
+                        </span>
+                      )}
                       <span className="text-xs font-mono text-gray-500">USDC</span>
                     </div>
                   </div>
