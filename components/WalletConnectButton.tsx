@@ -91,7 +91,7 @@ export default function WalletConnectButton() {
                     </span>
                     {user && (
                       <span className="text-auric">
-                        {user.real_credits_balance} Credits
+                        {user.real_credits_balance.toFixed(3)} Credits
                       </span>
                     )}
                   </button>

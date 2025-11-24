@@ -5,6 +5,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useAccount } from "wagmi";
 import WalletControl from "./WalletControl";
+import NotificationBell from "./NotificationBell";
 
 export default function Navigation() {
   const pathname = usePathname();
@@ -44,9 +45,10 @@ export default function Navigation() {
             </h1>
           </Link>
 
-          {/* Wallet Control - Only show when connected */}
+          {/* Notifications & Wallet Control - Only show when connected */}
           {isConnected && (
-            <div className="flex-shrink-0">
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <NotificationBell />
               <WalletControl />
             </div>
           )}

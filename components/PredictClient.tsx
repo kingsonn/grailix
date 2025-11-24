@@ -727,7 +727,7 @@ export default function PredictClient() {
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-mono text-gray-500 uppercase">Your_Balance</span>
                     <div className="flex items-center gap-2">
-                      <span className="text-auric font-bold text-lg font-mono tabular-nums">{user.real_credits_balance}</span>
+                      <span className="text-auric font-bold text-lg font-mono tabular-nums">{user.real_credits_balance.toFixed(3)}</span>
                       <span className="text-xs font-mono text-gray-500">USDC</span>
                     </div>
                   </div>

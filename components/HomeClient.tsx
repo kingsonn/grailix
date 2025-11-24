@@ -143,7 +143,7 @@ export default function HomeClient() {
                     </div>
                     <div className="flex flex-wrap items-baseline gap-2">
                       <span className="text-4xl md:text-5xl font-black font-mono text-auric tabular-nums drop-shadow-[0_0_20px_rgba(255,193,7,0.3)]">
-                        {user.real_credits_balance}
+                        {user.real_credits_balance.toFixed(3)}
                       </span>
                       <span className="text-gray-500 text-sm font-mono">USDC</span>
                     </div>

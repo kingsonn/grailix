@@ -450,7 +450,8 @@ function computeOutcome(
  */
 async function applyPayouts(
   predictionId: number,
-  outcome: "YES" | "NO"
+  outcome: "YES" | "NO",
+  predictionText: string
 ): Promise<void> {
   console.log(`💰 Calculating payouts for prediction ${predictionId}, outcome=${outcome}`);
 
@@ -485,7 +486,26 @@ async function applyPayouts(
   console.log(`📊 Pools: YES=${totalYes}, NO=${totalNo}, Winning=${winningPool}, Losing=${losingPool}`);
 
   if (winningPool === 0) {
-    console.log(`ℹ️ No winners for prediction ${predictionId}`);
+    console.log(`ℹ️ No winners for prediction ${predictionId}, notifying losers only`);
+    
+    // Create loss notifications for all stakers (since everyone lost)
+    for (const loser of stakes) {
+      const { error: notifError } = await supabase.from("notifications").insert({
+        user_id: loser.user_id,
+        prediction_id: predictionId,
+        type: "loss",
+        title: "📉 Prediction Lost",
+        message: `Your prediction "${predictionText}" resolved as ${outcome}. Better luck next time!`,
+        payout_amount: 0,
+        read: false,
+      });
+
+      if (notifError) {
+        console.error(`❌ Failed to create loss notification for user ${loser.user_id}:`, notifError);
+      }
+    }
+    
+    console.log(`✅ Loss notifications sent for prediction ${predictionId}`);
     return;
   }
 
@@ -581,6 +601,39 @@ async function applyPayouts(
     if (txError) {
       console.error(`❌ Failed to log transaction for user ${winner.user_id}:`, txError);
     }
+
+    // Create win notification
+    const { error: notifError } = await supabase.from("notifications").insert({
+      user_id: winner.user_id,
+      prediction_id: predictionId,
+      type: "win",
+      title: "🎉 Prediction Won!",
+      message: `You won ${payout.toFixed(2)} credits on "${predictionText}"`,
+      payout_amount: payout,
+      read: false,
+    });
+
+    if (notifError) {
+      console.error(`❌ Failed to create win notification for user ${winner.user_id}:`, notifError);
+    }
+  }
+
+  // Create loss notifications for losing side
+  const losingStakes = stakes.filter((s) => s.position !== outcome);
+  for (const loser of losingStakes) {
+    const { error: notifError } = await supabase.from("notifications").insert({
+      user_id: loser.user_id,
+      prediction_id: predictionId,
+      type: "loss",
+      title: "📉 Prediction Lost",
+      message: `Your prediction "${predictionText}" resolved as ${outcome}. Better luck next time!`,
+      payout_amount: 0,
+      read: false,
+    });
+
+    if (notifError) {
+      console.error(`❌ Failed to create loss notification for user ${loser.user_id}:`, notifError);
+    }
   }
 
   console.log(`✅ Payouts applied for prediction ${predictionId}`);
@@ -652,7 +705,7 @@ async function resolvePrediction(prediction: PredictionRow): Promise<void> {
     }
 
     // Step 5: Apply payouts
-    await applyPayouts(id, outcome);
+    await applyPayouts(id, outcome, prediction.prediction_text);
 
     // Step 6: Update prediction status
     const { error: updateError } = await supabase

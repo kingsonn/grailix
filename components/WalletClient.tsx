@@ -232,7 +232,7 @@ export default function WalletClient() {
                     <span className="text-gray-500 text-xs uppercase font-mono">Balance</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <h1 className="text-3xl sm:text-4xl font-black text-auric font-mono tabular-nums">{user.real_credits_balance}</h1>
+                    <h1 className="text-3xl sm:text-4xl font-black text-auric font-mono tabular-nums">{user.real_credits_balance.toFixed(3)}</h1>
                     <span className="text-gray-400 text-xs font-mono uppercase bg-auric/10 px-2 py-1 rounded border border-auric/30">USDC</span>
                   </div>
                 </div>
@@ -381,7 +381,7 @@ export default function WalletClient() {
                   <div className="flex justify-between mt-2 text-xs font-mono">
                     <span className="text-gray-500">MIN: 1</span>
                     <span className="text-gray-400">
-                      AVAILABLE: <span className="text-auric font-bold tabular-nums">{user.real_credits_balance}</span>
+                      AVAILABLE: <span className="text-auric font-bold tabular-nums">{user.real_credits_balance.toFixed(3)}</span>
                     </span>
                   </div>
                 </div>
