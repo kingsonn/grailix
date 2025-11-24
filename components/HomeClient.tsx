@@ -150,7 +150,7 @@ export default function HomeClient() {
                   </div>
 
                   {/* Win Rate - Compact */}
-                  <div className={`bg-gradient-to-br ${user.accuracy >= 50 ? 'from-profit/5 to-profit/10 border-profit/30' : 'from-loss/5 to-loss/10 border-loss/30'} border rounded-lg p-4 transition-all hover:scale-105`}>
+                  <div className={`bg-gradient-to-br ${user.accuracy >= 50 ? 'from-profit/5 to-profit/10 border-profit/30' : 'from-loss/5 to-loss/10 border-loss/30'} border rounded-lg p-4 transition-all md:hover:scale-105 active:scale-95`}>
                     <div className="flex items-center gap-2 mb-2">
                       <div className={`w-1.5 h-1.5 rounded-full ${user.accuracy >= 50 ? 'bg-profit shadow-lg shadow-profit/50' : 'bg-loss shadow-lg shadow-loss/50'} animate-pulse`}></div>
                       <span className="text-gray-400 text-xs font-mono uppercase">WIN_RATE</span>
@@ -161,7 +161,7 @@ export default function HomeClient() {
                   </div>
 
                   {/* Combined XP & Streak - Compact */}
-                  <div className="bg-gradient-to-br from-grail/5 to-neon/5 border border-grail/30 rounded-lg p-4 transition-all hover:scale-105">
+                  <div className="bg-gradient-to-br from-grail/5 to-neon/5 border border-grail/30 rounded-lg p-4 transition-all md:hover:scale-105 active:scale-95">
                     <div className="space-y-3">
                       {/* XP */}
                       <div>
@@ -194,24 +194,24 @@ export default function HomeClient() {
               {/* Predict Terminal */}
               <Link
                 href="/predict"
-                className="group bg-gradient-to-br from-void-black to-grail/5 border border-grail/30 hover:border-grail/60 rounded-lg overflow-hidden transition-all hover:shadow-xl hover:shadow-grail/20"
+                className="group bg-gradient-to-br from-void-black to-grail/5 border border-grail/30 md:hover:border-grail/60 rounded-lg overflow-hidden transition-all md:hover:shadow-xl md:hover:shadow-grail/20 active:scale-95"
               >
                 <div className="bg-gradient-to-r from-void-graphite to-grail/10 border-b border-grail/30 px-4 py-2.5 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <div className="w-1.5 h-1.5 rounded-full bg-grail animate-pulse shadow-lg shadow-grail/50"></div>
                     <span className="text-gray-400 text-xs font-mono tracking-wider">EXECUTE_PREDICTION</span>
                   </div>
-                  <svg className="w-4 h-4 text-grail-light group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 text-grail-light md:group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
                 </div>
                 <div className="p-6">
                   <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-lg bg-grail/10 border border-grail/40 flex items-center justify-center shadow-lg shadow-grail/20 group-hover:scale-110 transition-transform">
+                    <div className="w-14 h-14 rounded-lg bg-grail/10 border border-grail/40 flex items-center justify-center shadow-lg shadow-grail/20 md:group-hover:scale-110 transition-transform">
                       <span className="text-3xl">⚡</span>
                     </div>
                     <div className="flex-1">
-                      <h4 className="text-xl font-black text-white mb-1 font-mono group-hover:text-grail-light transition-colors">PREDICT</h4>
+                      <h4 className="text-xl font-black text-white mb-1 font-mono md:group-hover:text-grail-light transition-colors">PREDICT</h4>
                       <p className="text-xs text-gray-500 font-mono">Analyze markets → Place predictions</p>
                     </div>
                   </div>
@@ -221,24 +221,24 @@ export default function HomeClient() {
               {/* Wallet Terminal */}
               <Link
                 href="/wallet"
-                className="group bg-gradient-to-br from-void-black to-auric/5 border border-auric/30 hover:border-auric/60 rounded-lg overflow-hidden transition-all hover:shadow-xl hover:shadow-auric/20"
+                className="group bg-gradient-to-br from-void-black to-auric/5 border border-auric/30 md:hover:border-auric/60 rounded-lg overflow-hidden transition-all md:hover:shadow-xl md:hover:shadow-auric/20 active:scale-95"
               >
                 <div className="bg-gradient-to-r from-void-graphite to-auric/10 border-b border-auric/30 px-4 py-2.5 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <div className="w-1.5 h-1.5 rounded-full bg-auric animate-pulse shadow-lg shadow-auric/50"></div>
                     <span className="text-gray-400 text-xs font-mono tracking-wider">MANAGE_FUNDS</span>
                   </div>
-                  <svg className="w-4 h-4 text-auric group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 text-auric md:group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
                 </div>
                 <div className="p-6">
                   <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-lg bg-auric/10 border border-auric/40 flex items-center justify-center shadow-lg shadow-auric/20 group-hover:scale-110 transition-transform">
+                    <div className="w-14 h-14 rounded-lg bg-auric/10 border border-auric/40 flex items-center justify-center shadow-lg shadow-auric/20 md:group-hover:scale-110 transition-transform">
                       <span className="text-3xl">💰</span>
                     </div>
                     <div className="flex-1">
-                      <h4 className="text-xl font-black text-white mb-1 font-mono group-hover:text-auric transition-colors">WALLET</h4>
+                      <h4 className="text-xl font-black text-white mb-1 font-mono md:group-hover:text-auric transition-colors">WALLET</h4>
                       <p className="text-xs text-gray-500 font-mono">Deposit → Withdraw → Transfer</p>
                     </div>
                   </div>
@@ -260,33 +260,33 @@ export default function HomeClient() {
                   <Link
                     href="/predictions"
                     prefetch={false}
-                    className="group bg-gradient-to-br from-void-graphite to-neon/5 hover:from-neon/10 hover:to-neon/20 border border-grail/20 hover:border-neon/50 rounded-lg p-4 transition-all hover:shadow-lg hover:shadow-neon/20"
+                    className="group bg-gradient-to-br from-void-graphite to-neon/5 md:hover:from-neon/10 md:hover:to-neon/20 border border-grail/20 md:hover:border-neon/50 rounded-lg p-4 transition-all md:hover:shadow-lg md:hover:shadow-neon/20 active:scale-95"
                   >
                     <div className="text-center">
-                      <div className="text-3xl mb-2 group-hover:scale-110 transition-transform">📊</div>
-                      <p className="text-xs font-mono font-bold text-gray-400 group-hover:text-neon transition-colors uppercase tracking-wider">Markets</p>
+                      <div className="text-3xl mb-2 md:group-hover:scale-110 transition-transform">📊</div>
+                      <p className="text-xs font-mono font-bold text-gray-400 md:group-hover:text-neon transition-colors uppercase tracking-wider">Markets</p>
                     </div>
                   </Link>
                   
                   <Link
                     href="/history"
                     prefetch={false}
-                    className="group bg-gradient-to-br from-void-graphite to-grail/5 hover:from-grail/10 hover:to-grail/20 border border-grail/20 hover:border-grail/50 rounded-lg p-4 transition-all hover:shadow-lg hover:shadow-grail/20"
+                    className="group bg-gradient-to-br from-void-graphite to-grail/5 md:hover:from-grail/10 md:hover:to-grail/20 border border-grail/20 md:hover:border-grail/50 rounded-lg p-4 transition-all md:hover:shadow-lg md:hover:shadow-grail/20 active:scale-95"
                   >
                     <div className="text-center">
-                      <div className="text-3xl mb-2 group-hover:scale-110 transition-transform">📜</div>
-                      <p className="text-xs font-mono font-bold text-gray-400 group-hover:text-grail-light transition-colors uppercase tracking-wider">History</p>
+                      <div className="text-3xl mb-2 md:group-hover:scale-110 transition-transform">📜</div>
+                      <p className="text-xs font-mono font-bold text-gray-400 md:group-hover:text-grail-light transition-colors uppercase tracking-wider">History</p>
                     </div>
                   </Link>
                   
                   <Link
                     href="/leaderboard"
                     prefetch={false}
-                    className="group bg-gradient-to-br from-void-graphite to-auric/5 hover:from-auric/10 hover:to-auric/20 border border-grail/20 hover:border-auric/50 rounded-lg p-4 transition-all hover:shadow-lg hover:shadow-auric/20"
+                    className="group bg-gradient-to-br from-void-graphite to-auric/5 md:hover:from-auric/10 md:hover:to-auric/20 border border-grail/20 md:hover:border-auric/50 rounded-lg p-4 transition-all md:hover:shadow-lg md:hover:shadow-auric/20 active:scale-95"
                   >
                     <div className="text-center">
-                      <div className="text-3xl mb-2 group-hover:scale-110 transition-transform">🏆</div>
-                      <p className="text-xs font-mono font-bold text-gray-400 group-hover:text-auric transition-colors uppercase tracking-wider">Ranks</p>
+                      <div className="text-3xl mb-2 md:group-hover:scale-110 transition-transform">🏆</div>
+                      <p className="text-xs font-mono font-bold text-gray-400 md:group-hover:text-auric transition-colors uppercase tracking-wider">Ranks</p>
                     </div>
                   </Link>
                   

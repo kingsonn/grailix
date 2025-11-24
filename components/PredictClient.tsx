@@ -38,6 +38,7 @@ export default function PredictClient() {
   const [timeToBettingClose, setTimeToBettingClose] = useState("");
   const [bettingClosed, setBettingClosed] = useState(false);
   const [skippedIds, setSkippedIds] = useState<number[]>([]); // Track skipped prediction IDs
+  const [votedIds, setVotedIds] = useState<number[]>([]); // Track predictions being voted on
   
   // Swipe gesture states
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
@@ -63,9 +64,10 @@ export default function PredictClient() {
     }
 
     try {
-      // Use provided excludedIds or fall back to state
+      // Use provided excludedIds or fall back to state, and always include votedIds
       const idsToExclude = excludedIds !== undefined ? excludedIds : skippedIds;
-      const excludeIds = idsToExclude.join(',');
+      const allExcludedIds = [...new Set([...idsToExclude, ...votedIds])]; // Combine and deduplicate
+      const excludeIds = allExcludedIds.join(',');
       const url = `/api/predictions/next?user_wallet_address=${user.wallet_address}&asset_type=${category}${excludeIds ? `&exclude_ids=${excludeIds}` : ''}`;
       
       const response = await fetch(url);
@@ -74,23 +76,34 @@ export default function PredictClient() {
       if (data.success) {
         const newPrediction = data.data.prediction;
         
-        // If no prediction found and we have skipped some, reset and try again
-        if (!newPrediction && idsToExclude.length > 0) {
-          setSkippedIds([]); // Reset skipped list
-          // Fetch again without exclusions
-          const resetUrl = `/api/predictions/next?user_wallet_address=${user.wallet_address}&asset_type=${category}`;
-          const resetResponse = await fetch(resetUrl);
-          const resetData = await resetResponse.json();
-          
-          if (resetData.success) {
-            if (isPreFetch) {
-              setNextPrediction(resetData.data.prediction);
+        // If no prediction found
+        if (!newPrediction) {
+          // Only reset and retry if we have ONLY skipped cards (not voted)
+          // This allows users to see skipped cards again, but not voted cards
+          if (skippedIds.length > 0 && votedIds.length === 0) {
+            setSkippedIds([]); // Reset skipped list
+            // Fetch again without exclusions
+            const resetUrl = `/api/predictions/next?user_wallet_address=${user.wallet_address}&asset_type=${category}`;
+            const resetResponse = await fetch(resetUrl);
+            const resetData = await resetResponse.json();
+            
+            if (resetData.success && resetData.data.prediction) {
+              if (isPreFetch) {
+                setNextPrediction(resetData.data.prediction);
+              } else {
+                setPrediction(resetData.data.prediction);
+              }
             } else {
-              setPrediction(resetData.data.prediction);
+              if (!isPreFetch) {
+                setError("No more predictions available");
+                setPrediction(null);
+              }
             }
           } else {
+            // No predictions available (all voted or truly empty)
             if (!isPreFetch) {
-              setError(resetData.error || "No predictions available");
+              setError("No more predictions available");
+              setPrediction(null);
             }
           }
         } else {
@@ -117,8 +130,8 @@ export default function PredictClient() {
   const preFetchNext = async () => {
     if (!user || !prediction) return;
     
-    // Exclude current prediction and skipped ones
-    const excludeIds = [...skippedIds, prediction.id];
+    // Exclude current prediction, skipped ones, and voted ones
+    const excludeIds = [...skippedIds, ...votedIds, prediction.id];
     await fetchNextPrediction(excludeIds, true);
   };
 
@@ -127,6 +140,7 @@ export default function PredictClient() {
     if (user) {
       setIsLoading(true); // Show loading only on initial load or category change
       setSkippedIds([]); // Reset skipped IDs when category changes
+      setVotedIds([]); // Reset voted IDs when category changes
       fetchNextPrediction().finally(() => setIsLoading(false));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -241,6 +255,9 @@ export default function PredictClient() {
 
   // Swipe gesture handlers
   const handleTouchStart = (e: React.TouchEvent) => {
+    // Prevent new swipes if already submitting
+    if (isSubmitting) return;
+    
     const touch = e.touches[0];
     setTouchStart({ x: touch.clientX, y: touch.clientY });
     setTouchCurrent({ x: touch.clientX, y: touch.clientY });
@@ -254,7 +271,15 @@ export default function PredictClient() {
   };
 
   const handleTouchEnd = () => {
-    if (!touchStart || !touchCurrent || isSubmitting) {
+    if (!touchStart || !touchCurrent) {
+      setTouchStart(null);
+      setTouchCurrent(null);
+      setIsSwiping(false);
+      return;
+    }
+
+    // Prevent multiple swipes if already submitting
+    if (isSubmitting) {
       setTouchStart(null);
       setTouchCurrent(null);
       setIsSwiping(false);
@@ -265,6 +290,11 @@ export default function PredictClient() {
     const deltaY = touchCurrent.y - touchStart.y;
     const absDeltaX = Math.abs(deltaX);
     const absDeltaY = Math.abs(deltaY);
+
+    // Clear touch state immediately to prevent queue
+    setTouchStart(null);
+    setTouchCurrent(null);
+    setIsSwiping(false);
 
     // Swipe right for YES (threshold: 100px)
     if (deltaX > 100 && absDeltaX > absDeltaY) {
@@ -278,10 +308,6 @@ export default function PredictClient() {
     else if (deltaY < -150 && absDeltaY > absDeltaX) {
       handleSkip();
     }
-
-    setTouchStart(null);
-    setTouchCurrent(null);
-    setIsSwiping(false);
   };
 
   // Calculate swipe transform and rotation
@@ -332,6 +358,9 @@ export default function PredictClient() {
     const currentQuestion = prediction.prediction_text;
     const currentPredictionId = prediction.id;
 
+    // Add to votedIds IMMEDIATELY to prevent showing again
+    setVotedIds(prev => [...prev, currentPredictionId]);
+
     // INSTANTLY move to next card (use pre-fetched or fetch new)
     setSelectedPosition(position);
     setIsSubmitting(true);
@@ -343,7 +372,7 @@ export default function PredictClient() {
       setNextPrediction(null);
     } else {
       // Fallback: fetch if no pre-fetch available
-      const excludeIds = [...skippedIds, currentPredictionId];
+      const excludeIds = [...skippedIds, ...votedIds, currentPredictionId];
       fetchNextPrediction(excludeIds, false);
     }
 
@@ -411,9 +440,9 @@ export default function PredictClient() {
               <div className="flex items-center gap-3">
                 <Link
                   href="/"
-                  className="flex items-center gap-2 text-gray-400 hover:text-grail-light transition-colors group"
+                  className="flex items-center gap-2 text-gray-400 md:hover:text-grail-light transition-colors group"
                 >
-                  <svg className="w-4 h-4 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 md:group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                   </svg>
                   <span className="text-xs font-mono tracking-wider hidden sm:inline">BACK</span>
@@ -444,10 +473,10 @@ export default function PredictClient() {
                     <button
                       key={cat.value}
                       onClick={() => setCategory(cat.value as any)}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-xs font-bold transition-all ${
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-xs font-bold transition-all active:scale-95 ${
                         category === cat.value
                           ? "bg-gradient-to-r from-grail to-grail-light text-white shadow-lg shadow-grail/30 border border-grail/50"
-                          : "bg-void-graphite text-gray-400 hover:text-white hover:bg-void-graphite/60 border border-grail/20"
+                          : "bg-void-graphite text-gray-400 md:hover:text-white md:hover:bg-void-graphite/60 border border-grail/20"
                       }`}
                     >
                       <span className="text-sm">{cat.icon}</span>
@@ -504,25 +533,27 @@ export default function PredictClient() {
             <div className="p-8 sm:p-12 text-center">
               <div className="text-6xl sm:text-7xl mb-6">📭</div>
               <h3 className="text-xl sm:text-2xl font-bold text-white mb-3 font-mono">
-                NO_ACTIVE_PREDICTIONS
+                {votedIds.length > 0 ? "ALL_PREDICTIONS_VOTED" : "NO_ACTIVE_PREDICTIONS"}
               </h3>
               <p className="text-gray-400 mb-6 font-mono text-sm">
-                {category === "all" 
-                  ? "No predictions available at the moment. Check back soon!"
-                  : `No ${category.toUpperCase()} predictions available. Try a different category.`}
+                {votedIds.length > 0
+                  ? `You've voted on all available ${category === "all" ? "" : category.toUpperCase() + " "}predictions! Check back later for new ones or try a different category.`
+                  : category === "all" 
+                    ? "No predictions available at the moment. Check back soon!"
+                    : `No ${category.toUpperCase()} predictions available. Try a different category.`}
               </p>
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 {category !== "all" && (
                   <button
                     onClick={() => setCategory("all")}
-                    className="bg-gradient-to-br from-grail to-grail/80 hover:from-grail/90 hover:to-grail text-white font-bold font-mono py-3 px-6 rounded-lg transition-all shadow-lg shadow-grail/20 hover:shadow-grail/40"
+                    className="bg-gradient-to-br from-grail to-grail/80 md:hover:from-grail/90 md:hover:to-grail text-white font-bold font-mono py-3 px-6 rounded-lg transition-all shadow-lg shadow-grail/20 md:hover:shadow-grail/40 active:scale-95"
                   >
                     VIEW_ALL_CATEGORIES
                   </button>
                 )}
                 <Link
                   href="/predictions"
-                  className="bg-gradient-to-br from-void-graphite to-grail/5 hover:from-grail/10 hover:to-grail/20 border border-grail/30 hover:border-grail/50 text-white font-bold font-mono py-3 px-6 rounded-lg transition-all inline-block"
+                  className="bg-gradient-to-br from-void-graphite to-grail/5 md:hover:from-grail/10 md:hover:to-grail/20 border border-grail/30 md:hover:border-grail/50 text-white font-bold font-mono py-3 px-6 rounded-lg transition-all inline-block active:scale-95"
                 >
                   VIEW_ALL_PREDICTIONS
                 </Link>
@@ -779,11 +810,11 @@ export default function PredictClient() {
                     <button
                       onClick={() => handleStake("NO")}
                       disabled={bettingClosed || isSubmitting}
-                      className="group relative bg-gradient-to-br from-loss to-loss/80 hover:from-loss/90 hover:to-loss/70 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-6 rounded-lg transition-all hover:scale-[1.02] border border-loss/50 shadow-lg shadow-loss/20 font-mono overflow-hidden"
+                      className="group relative bg-gradient-to-br from-loss to-loss/80 md:hover:from-loss/90 md:hover:to-loss/70 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-6 rounded-lg transition-all md:hover:scale-[1.02] active:scale-95 border border-loss/50 shadow-lg shadow-loss/20 font-mono overflow-hidden"
                     >
-                      <div className="absolute inset-0 bg-loss/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                      <div className="absolute inset-0 bg-loss/20 opacity-0 md:group-hover:opacity-100 transition-opacity"></div>
                       <div className="relative flex flex-col items-center justify-center gap-1">
-                        <div className="w-2 h-2 rounded-full bg-white/80 group-hover:bg-white transition-colors"></div>
+                        <div className="w-2 h-2 rounded-full bg-white/80 md:group-hover:bg-white transition-colors"></div>
                         <div className="text-base tracking-wider">{isSubmitting && selectedPosition === "NO" ? "..." : "NO"}</div>
                       </div>
                     </button>
@@ -791,11 +822,11 @@ export default function PredictClient() {
                     <button
                       onClick={handleSkip}
                       disabled={isSubmitting}
-                      className="group relative bg-void-graphite hover:bg-void-graphite/60 disabled:opacity-50 disabled:cursor-not-allowed text-gray-400 hover:text-white font-bold py-6 rounded-lg transition-all border border-grail/20 hover:border-grail/40 font-mono overflow-hidden"
+                      className="group relative bg-void-graphite md:hover:bg-void-graphite/60 disabled:opacity-50 disabled:cursor-not-allowed text-gray-400 md:hover:text-white font-bold py-6 rounded-lg transition-all border border-grail/20 md:hover:border-grail/40 font-mono overflow-hidden active:scale-95"
                     >
-                      <div className="absolute inset-0 bg-grail/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                      <div className="absolute inset-0 bg-grail/10 opacity-0 md:group-hover:opacity-100 transition-opacity"></div>
                       <div className="relative flex flex-col items-center justify-center gap-1">
-                        <div className="w-2 h-2 rounded-full bg-gray-500 group-hover:bg-gray-300 transition-colors"></div>
+                        <div className="w-2 h-2 rounded-full bg-gray-500 md:group-hover:bg-gray-300 transition-colors"></div>
                         <div className="text-base tracking-wider">SKIP</div>
                       </div>
                     </button>
@@ -803,11 +834,11 @@ export default function PredictClient() {
                     <button
                       onClick={() => handleStake("YES")}
                       disabled={bettingClosed || isSubmitting}
-                      className="group relative bg-gradient-to-br from-profit to-profit/80 hover:from-profit/90 hover:to-profit/70 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-6 rounded-lg transition-all hover:scale-[1.02] border border-profit/50 shadow-lg shadow-profit/20 font-mono overflow-hidden"
+                      className="group relative bg-gradient-to-br from-profit to-profit/80 md:hover:from-profit/90 md:hover:to-profit/70 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-6 rounded-lg transition-all md:hover:scale-[1.02] active:scale-95 border border-profit/50 shadow-lg shadow-profit/20 font-mono overflow-hidden"
                     >
-                      <div className="absolute inset-0 bg-profit/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                      <div className="absolute inset-0 bg-profit/20 opacity-0 md:group-hover:opacity-100 transition-opacity"></div>
                       <div className="relative flex flex-col items-center justify-center gap-1">
-                        <div className="w-2 h-2 rounded-full bg-white/80 group-hover:bg-white transition-colors"></div>
+                        <div className="w-2 h-2 rounded-full bg-white/80 md:group-hover:bg-white transition-colors"></div>
                         <div className="text-base tracking-wider">{isSubmitting && selectedPosition === "YES" ? "..." : "YES"}</div>
                       </div>
                     </button>

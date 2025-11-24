@@ -243,7 +243,6 @@ export default function NotificationBell() {
               </div>
             ) : notifications.length === 0 ? (
               <div className="p-8 text-center">
-                <div className="text-4xl mb-3">✅</div>
                 <div className="text-gray-400 font-mono text-sm">All caught up!</div>
                 <div className="text-gray-600 font-mono text-xs mt-1">No unread notifications</div>
               </div>
