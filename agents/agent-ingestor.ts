@@ -121,8 +121,38 @@ export async function runAgent1() {
       continue;
     }
 
-    // Insert into Supabase ai_raw_inputs
+    // Check for duplicates before inserting
     try {
+      // Check if this exact raw_text + ticker combination already exists
+      const { data: existingRows, error: checkError } = await supabase
+        .from("ai_raw_inputs")
+        .select("id")
+        .eq("raw_text", raw_text)
+        .eq("ticker", ticker)
+        .limit(1);
+
+      if (checkError) {
+        console.error(`Error checking for duplicates for sheet row ${i + 1}:`, checkError);
+        continue;
+      }
+
+      if (existingRows && existingRows.length > 0) {
+        console.log(`Skipping sheet row ${i + 1} — duplicate already exists in ai_raw_inputs (ticker=${ticker})`);
+        
+        // Still mark as processed in sheet to avoid re-checking
+        if (processedIdx !== -1) {
+          const sheetRowNumber = i + 1;
+          const updatedRow = rowSafe.slice(0, header.length);
+          updatedRow[processedIdx] = "TRUE";
+          updates.push({
+            range: `Sheet1!A${sheetRowNumber}:F${sheetRowNumber}`,
+            values: updatedRow,
+          });
+        }
+        continue;
+      }
+
+      // Insert into Supabase ai_raw_inputs
       const { data: insertedRow, error } = await supabase.from("ai_raw_inputs").insert([
         {
           raw_text,
@@ -132,6 +162,7 @@ export async function runAgent1() {
           source_url: source_url || null,
         },
       ]).select("id").single();
+      
       if (insertedRow && insertedRow.id) {
         newInsertedIds.push(insertedRow.id); // collect for handoff
       }
