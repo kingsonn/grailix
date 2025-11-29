@@ -126,9 +126,7 @@ export default function ClaimFaucetButton() {
 
   const addTokenToWallet = async () => {
     if (!window.ethereum) {
-      const installUrl = "https://metamask.app.link/dapp/" + window.location.host;
-      window.open(installUrl, "_blank");
-      alert("Opening wallet app — please try the Add Token action again there.");
+      alert("Please install MetaMask or another Web3 wallet");
       return;
     }
 
@@ -145,8 +143,9 @@ export default function ClaimFaucetButton() {
           },
         },
       });
-    } catch (error) {
-      console.error("Error adding token to wallet:", error);
+    } catch (err) {
+      console.error("Add token error:", err);
+      alert("Failed to add token to wallet");
     }
   };
 
