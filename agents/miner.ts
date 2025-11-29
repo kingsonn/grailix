@@ -1,175 +1,213 @@
-import "dotenv/config";
-import Groq from "groq-sdk";
-import Parser from "rss-parser";
-import { extractJson } from "./utils/cleanJson";
+/**
+ * Miner Option-D v3
+ * -----------------
+ * ✔ Puppeteer scraping (bypasses 247WallSt / MarketWatch protection)
+ * ✔ Cheerio parsing
+ * ✔ Free LLM (local Ollama / LM Studio)
+ * ✔ Extracts only STOCK-RELEVANT news
+ * ✔ Extracts ticker + sentiment + relevance score
+ * ✔ Clean console output for Agent-2 testing
+ */
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
-const parser = new Parser();
+import axios from "axios";
+import * as cheerio from "cheerio";
+import puppeteer from "puppeteer";
 
-// --------------------------------------------------------------
-//  RSS SOURCES (crypto + stocks + analyst upgrades)
-// --------------------------------------------------------------
-export const RSS_FEEDS = [
-  // Crypto (worked for you)
-  "https://feeds.feedburner.com/CoinDesk",
-  "https://cryptonews.com/news/feed/",
-  "https://ambcrypto.com/feed/",
-  "https://u.today/rss",
+// ------------------------- CONFIG -------------------------
 
-  // Forex / multi-asset analysis
-  "https://www.fxstreet.com/rss",
+// Local free LLM endpoint (Ollama / LM Studio)
+// Change this if needed
+const LLM_URL = "http://127.0.0.1:11434/api/generate";
 
-  // STOCKS + ANALYST UPGRADES (New!)
-  "https://www.theglobeandmail.com/business/rob-magazine/feed/",
-  "https://www.investorschronicle.co.uk/feed/",
-  "https://www.tradingview.com/news/atom/rss/",
-  "https://www.businessinsider.com/sai/us-markets/rss",
-  "https://www.fool.com/feeds/index.aspx",
+// 247WallSt is Cloudflare protected → must use puppeteer
+const STOCK_SOURCES = [
+  {
+    name: "247WallSt",
+    url: "https://247wallst.com/investing/",
+    selector: "a",
+  },
+  {
+    name: "FinancialExpress",
+    url: "https://www.financialexpress.com/market/",
+    selector: "a",
+  },
+  {
+    name: "MarketWatch",
+    url: "https://www.marketwatch.com/",
+    selector: "a",
+  },
 ];
 
-// --------------------------------------------------------------
-//  TICKER MAPPING (NYSE + NASDAQ)
-// --------------------------------------------------------------
-export async function guessTicker(company: string): Promise<string | null> {
-  const map: Record<string, string> = {
-    // Add as needed — common ones
-    "Apple": "AAPL",
-    "Microsoft": "MSFT",
-    "Amazon": "AMZN",
-    "Nvidia": "NVDA",
-    "Meta": "META",
-    "Tesla": "TSLA",
-    "AMD": "AMD",
-    "Alphabet": "GOOGL",
-    "Alphabet Inc": "GOOGL",
-    "Google": "GOOGL",
-    "Netflix": "NFLX",
-  };
+// -----------------------------------------------------------
+// Helper: fetch page with puppeteer (bypasses Cloudflare)
+// -----------------------------------------------------------
 
-  // Soft match by keyword
-  for (const key of Object.keys(map)) {
-    if (company.toLowerCase().includes(key.toLowerCase())) {
-      return map[key];
-    }
+async function fetchWithPuppeteer(url: string): Promise<string | null> {
+  try {
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    });
+
+    const page = await browser.newPage();
+    await page.setUserAgent(
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36"
+    );
+
+    await page.goto(url, { waitUntil: "networkidle2", timeout: 60000 });
+
+    const html = await page.content();
+
+    await browser.close();
+    return html;
+  } catch (err) {
+    console.error("❌ Puppeteer fetch failed:", err);
+    return null;
   }
-
-  return null;
 }
 
-// --------------------------------------------------------------
-//  LLM Extraction Prompt
-// --------------------------------------------------------------
-function buildLLMPrompt(article: string): string {
-  return `
-Extract ONLY explicit numeric predictions from this article.
+// -----------------------------------------------------------
+// Helper: send text to free local LLM (Ollama)
+// -----------------------------------------------------------
 
-What counts as a prediction:
-- Analyst upgrades/downgrades with price targets
-- Price predictions like "$260 target", "$100 by Friday", "up 2% today"
-- Crypto predictions like "BTC will reach $97k"
-- DO NOT invent anything.
+async function askLLM(prompt: string): Promise<string> {
+  try {
+    const response = await axios.post(
+      LLM_URL,
+      {
+        model: "qwen2.5:1.5b", // VERY small model, safe for daily scraping
+        prompt,
+        stream: false,
+      },
+      { timeout: 30000 }
+    );
 
-Return JSON ONLY with this format:
+    return response.data.response.trim();
+  } catch (err) {
+    console.error("❌ LLM error", err);
+    return "LLM_ERROR";
+  }
+}
+
+// -----------------------------------------------------------
+// Extract headline + full text
+// -----------------------------------------------------------
+
+async function scrapeArticle(url: string) {
+  const html = await fetchWithPuppeteer(url);
+  if (!html) return null;
+
+  const $ = cheerio.load(html);
+
+  const title = $("h1").first().text().trim();
+  let paragraphs = $("p")
+    .map((_, el) => $(el).text())
+    .get()
+    .join(" ");
+
+  // Clean
+  const text = paragraphs.replace(/\s+/g, " ").trim();
+
+  if (!title || !text) return null;
+
+  // ----------- Ask LLM to check relevance & extract ticker ----------
+  const llmPrompt = `
+You are a financial news interpreter.
+Given the article below, respond ONLY in JSON:
 
 {
-  "predictions": [
-     {
-       "raw_text": "...",
-       "prediction_text": "...",
-       "asset": "...",
-       "target_price": "... or null",
-       "direction": "UP | DOWN | UNKNOWN",
-       "source": "...",
-       "long_term": true | false
-     }
-  ]
+  "is_stock_related": true/false,
+  "ticker": "TSLA",
+  "sentiment": "up" | "down" | "neutral",
+  "score": 0-100,
+  "summary": "one sentence summary"
 }
 
-Rules:
-- If article contains a price target (like "Buy with $260 target"), mark long_term=true.
-- If target is short-term ("by tomorrow", "today", "this week"), mark long_term=false.
-- Asset can be ticker ("AAPL") or crypto ("BTCUSDT").
-- If unsure, leave field null.
-- No explanation.
-- JSON ONLY.
-  
-ARTICLE:
-${article}
+Article:
+"${title}"
+"${text}"
   `;
+
+  const llmResult = await askLLM(llmPrompt);
+
+  try {
+    const parsed = JSON.parse(llmResult);
+
+    return {
+      url,
+      title,
+      text,
+      ...parsed,
+    };
+  } catch (err) {
+    console.log("❌ Failed to parse LLM JSON for:", title);
+    return null;
+  }
 }
 
-// --------------------------------------------------------------
-//  Miner Function
-// --------------------------------------------------------------
-export async function minePredictionsFromRSS(): Promise<any[]> {
-  const finalPredictions: any[] = [];
+// -----------------------------------------------------------
+// Extract article links from index page
+// -----------------------------------------------------------
 
-  for (const feed of RSS_FEEDS) {
-    console.log(`\n🔵 Fetching RSS: ${feed}`);
+async function scrapeIndex(source: any): Promise<string[]> {
+  console.log(`Index: fetching ${source.name} ${source.url}`);
 
-    let rss;
-    try {
-      rss = await parser.parseURL(feed);
-    } catch (err) {
-      console.log("RSS Error:", (err as any).message);
-      continue;
+  const html = await fetchWithPuppeteer(source.url);
+  if (!html) return [];
+
+  const $ = cheerio.load(html);
+
+  // extract all article-like links
+  let links = new Set<string>();
+
+  $(source.selector).each((_, el) => {
+    let href = $(el).attr("href");
+    if (!href) return;
+
+    if (!href.startsWith("http")) {
+      href = source.url + href;
     }
 
-    if (!rss.items) continue;
+    // Keep only article-like pages
+    if (
+      href.includes("/202") ||
+      href.includes("/investing/") ||
+      href.includes("/markets/")
+    ) {
+      links.add(href);
+    }
+  });
 
-    for (const item of rss.items) {
-      const title = item.title || "";
-      const content = item.contentSnippet || item.content || "";
+  return [...links];
+}
 
-      const articleText = `${title}\n${content}`;
+// -----------------------------------------------------------
+// MASTER MINING FUNCTION
+// -----------------------------------------------------------
 
-      // -------- Run LLM extraction --------
-      let llmResponse;
-      try {
-        const output = await groq.chat.completions.create({
-          model: "llama-3.3-70b-versatile",
-          messages: [{ role: "user", content: buildLLMPrompt(articleText) }],
-          temperature: 0.2,
-        });
+export async function runMiner() {
+  console.log("⛏ Fetching stock news…\n");
 
-        const raw = output.choices[0].message?.content || "{}";
-        llmResponse = extractJson(raw);
-        if (!llmResponse) {
-          console.log("LLM JSON extraction error");
-          continue;
+  let articles: any[] = [];
+
+  for (const src of STOCK_SOURCES) {
+    try {
+      const links = await scrapeIndex(src);
+
+      for (let url of links.slice(0, 15)) {
+        const data = await scrapeArticle(url);
+        if (data && data.is_stock_related && data.ticker) {
+          articles.push(data);
         }
-      } catch (err) {
-        console.log("LLM Error:", (err as any).message);
-        continue;
       }
-
-      if (!llmResponse?.predictions) continue;
-
-      for (const p of llmResponse.predictions) {
-        // Detect ticker if not provided
-        let asset = p.asset;
-
-        if (!asset) {
-          const possibleTicker = await guessTicker(p.raw_text || "");
-          if (possibleTicker) asset = possibleTicker;
-        }
-
-        if (!asset) continue;
-
-        console.log(`🟢 Prediction: ${p.prediction_text}`);
-
-        finalPredictions.push({
-          raw_text: p.raw_text,
-          prediction_text: p.prediction_text,
-          asset,
-          target_price: p.target_price || null,
-          direction: p.direction || "UNKNOWN",
-          source: p.source || feed,
-          long_term: p.long_term ?? false,
-        });
-      }
+    } catch (err: any) {
+      console.error(`❌ Error scraping ${src.name}:`, err.message);
     }
   }
 
-  return finalPredictions;
+  console.log("\n---------------- FINAL RESULTS ----------------\n");
+  console.log(JSON.stringify(articles, null, 2));
+  console.log(`\nTotal relevant stock articles: ${articles.length}\n`);
 }
+
+runMiner();
