@@ -219,7 +219,7 @@ export default function ClaimFaucetButton() {
               : isTxSuccess
               ? "Claimed!"
               : !claimStatus?.canClaim
-              ? `Next claim in ${timeRemaining}`
+              ? <span className="text-xs sm:text-xs">{timeRemaining}</span>
               : "Claim 1000 USDC"}
           </p>
         </div>
@@ -241,7 +241,7 @@ export default function ClaimFaucetButton() {
               Successfully Claimed!
             </h2>
             <p className="text-gray-400 text-center mb-6">
-              You've received <span className="text-profit font-bold">1,000 mockUSDC</span>
+              You&apos;ve received <span className="text-profit font-bold">1,000 mockUSDC</span>
             </p>
 
             {/* Next Steps */}
