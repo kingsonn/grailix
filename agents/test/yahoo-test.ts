@@ -4,7 +4,7 @@
 // import fetch from "node-fetch";
 
 async function testYahoo() {
-  const symbol = "AAPL"; // Test ticker
+  const symbol = "SQ"; // Test ticker
 
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1m`;
 
