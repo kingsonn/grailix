@@ -334,7 +334,7 @@ export default function ClaimFaucetButton() {
                 {/* Add to Wallet Button */}
                 <button
                   onClick={addTokenToWallet}
-                  className="w-full bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white rounded-lg py-2 px-3 text-sm font-semibold transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40"
+                  className="hidden md:flex w-full bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white rounded-lg py-2 px-3 text-sm font-semibold transition-all items-center justify-center gap-2 shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40"
                 >
                   
                   Add mockUSDC Token to Wallet
