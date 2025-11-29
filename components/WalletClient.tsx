@@ -3,8 +3,8 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useUser } from "@/lib/useUser";
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
-import { parseUnits } from "viem";
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract } from "wagmi";
+import { parseUnits, formatUnits } from "viem";
 import { v4 as uuidv4 } from "uuid";
 import { VAULT_ADDRESS, TOKEN_ADDRESS, MockUSDC_ABI, GrailixVault_ABI } from "@/lib/contract";
 import WalletConnectButton from "@/components/WalletConnectButton";
@@ -21,11 +21,25 @@ export default function WalletClient() {
   const [activeTab, setActiveTab] = useState<"deposit" | "withdraw">("deposit");
   const [currentDepositId, setCurrentDepositId] = useState<string>("");
 
+  // Read MockUSDC balance from wallet
+  const { data: walletBalance, refetch: refetchBalance } = useReadContract({
+    address: TOKEN_ADDRESS,
+    abi: MockUSDC_ABI,
+    functionName: "balanceOf",
+    args: address ? [address] : undefined,
+    query: {
+      enabled: isConnected && !!address,
+    },
+  });
+
+  const formattedWalletBalance = walletBalance ? parseFloat(formatUnits(walletBalance, 18)).toFixed(3) : "0.000";
+
   useEffect(() => {
     if (isConnected && address) {
       refetch();
+      refetchBalance();
     }
-  }, [address, isConnected, refetch]);
+  }, [address, isConnected, refetch, refetchBalance]);
 
   const { writeContract: writeApprove, data: approveHash } = useWriteContract();
   const { writeContract: writeDeposit, data: depositHash } = useWriteContract();
@@ -107,6 +121,7 @@ export default function WalletClient() {
             setStatusMessage({ type: "success", text: `Successfully deposited ${depositAmount} MockUSDC!` });
             setDepositAmount("");
             refetch();
+            refetchBalance();
           } else {
             setStatusMessage({ type: "error", text: data.error || "Failed to update balance" });
           }
@@ -226,14 +241,14 @@ export default function WalletClient() {
             {/* Balance Card - Compact */}
             <div className="bg-void-black border border-grail/30 rounded-lg overflow-hidden shadow-xl mb-4">
               <div className="p-4 sm:p-5">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between flex-wrap gap-2">
                   <div className="flex items-center gap-2">
                     <div className="w-1.5 h-1.5 rounded-full bg-auric animate-pulse shadow-lg shadow-auric/50"></div>
                     <span className="text-gray-500 text-xs uppercase font-mono">Balance</span>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <h1 className="text-3xl sm:text-4xl font-black text-auric font-mono tabular-nums">{user.real_credits_balance.toFixed(3)}</h1>
-                    <span className="text-gray-400 text-xs font-mono uppercase bg-auric/10 px-2 py-1 rounded border border-auric/30">USDC</span>
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-auric font-mono tabular-nums break-all">{user.real_credits_balance.toFixed(3)}</h1>
+                    <span className="text-gray-400 text-xs font-mono uppercase bg-auric/10 px-2 py-1 rounded border border-auric/30 flex-shrink-0">USDC</span>
                   </div>
                 </div>
               </div>
@@ -302,7 +317,21 @@ export default function WalletClient() {
                   </div>
                 </div>
                 <div className="p-6 sm:p-8">
-                <h2 className="text-xl sm:text-2xl font-bold mb-6 font-mono">DEPOSIT_MOCKUSDC</h2>
+                <h2 className="text-xl sm:text-2xl font-bold mb-4 font-mono">DEPOSIT_MOCKUSDC</h2>
+                
+                {/* Wallet Balance Display */}
+                <div className="mb-6 bg-gradient-to-r from-profit/10 to-profit/5 border border-profit/30 rounded-lg p-4">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-profit animate-pulse"></div>
+                      <span className="text-xs text-gray-400 uppercase font-mono">Available in Wallet</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl sm:text-2xl font-bold text-profit font-mono tabular-nums break-all">{formattedWalletBalance}</span>
+                      <span className="text-xs text-gray-400 font-mono uppercase bg-profit/10 px-2 py-1 rounded border border-profit/30 flex-shrink-0">USDC</span>
+                    </div>
+                  </div>
+                </div>
                 
                 <div className="mb-6">
                   <div className="flex items-center gap-2 mb-2">
@@ -319,16 +348,24 @@ export default function WalletClient() {
                 </div>
 
                 {/* Quick Amount Buttons */}
-                <div className="grid grid-cols-4 gap-2 sm:gap-3 mb-6">
+                <div className="grid grid-cols-5 gap-2 sm:gap-3 mb-6">
                   {[10, 50, 100, 500].map((amount) => (
                     <button
                       key={amount}
                       onClick={() => setDepositAmount(amount.toString())}
-                      className="bg-void-graphite hover:bg-grail/20 text-white py-2 sm:py-3 rounded-lg font-bold font-mono text-sm sm:text-base transition-all border border-grail/20 hover:border-grail/40"
+                      disabled={parseFloat(formattedWalletBalance) < amount}
+                      className="bg-void-graphite hover:bg-grail/20 disabled:opacity-30 disabled:cursor-not-allowed text-white py-2 sm:py-3 rounded-lg font-bold font-mono text-sm sm:text-base transition-all border border-grail/20 hover:border-grail/40"
                     >
                       {amount}
                     </button>
                   ))}
+                  <button
+                    onClick={() => setDepositAmount(formattedWalletBalance)}
+                    disabled={parseFloat(formattedWalletBalance) === 0}
+                    className="bg-void-graphite hover:bg-grail/20 disabled:opacity-30 disabled:cursor-not-allowed text-white py-2 sm:py-3 rounded-lg font-bold font-mono text-xs sm:text-base transition-all border border-grail/20 hover:border-grail/40"
+                  >
+                    MAX
+                  </button>
                 </div>
 
                 <button
@@ -378,10 +415,10 @@ export default function WalletClient() {
                     max={user.real_credits_balance}
                     className="w-full bg-void-graphite border border-grail/30 rounded-lg px-4 sm:px-6 py-3 sm:py-4 text-white text-xl sm:text-2xl font-bold font-mono tabular-nums focus:outline-none focus:border-neon transition-colors"
                   />
-                  <div className="flex justify-between mt-2 text-xs font-mono">
+                  <div className="flex justify-between mt-2 text-xs font-mono flex-wrap gap-2">
                     <span className="text-gray-500">MIN: 1</span>
                     <span className="text-gray-400">
-                      AVAILABLE: <span className="text-auric font-bold tabular-nums">{user.real_credits_balance.toFixed(3)}</span>
+                      AVAILABLE: <span className="text-auric font-bold tabular-nums break-all">{user.real_credits_balance.toFixed(3)}</span>
                     </span>
                   </div>
                 </div>

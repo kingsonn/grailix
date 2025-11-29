@@ -10,7 +10,9 @@
     "agent:miner": "tsx agents/test/miner.test.ts",
     "yahoo:test": "tsx agents/test/yahoo-test.ts",
     "agent:ingest": "tsx agents/agent-ingestor.ts",
-    "agents:local": "tsx agents/local-scheduler.ts"
+    "agents:local": "tsx agents/local-scheduler.ts",
+    "bot:simulate": "tsx bots/simulate-bot-predictions.ts",
+    "bot:advanced": "tsx bots/advanced-bot-simulator.ts"
   },
   "dependencies": {
     "@googleapis/sheets": "^12.0.0",

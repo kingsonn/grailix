@@ -142,10 +142,10 @@ export default function HomeClient() {
                       <span className="text-gray-500 text-xs font-mono uppercase tracking-wider">BALANCE</span>
                     </div>
                     <div className="flex flex-wrap items-baseline gap-2">
-                      <span className="text-4xl md:text-5xl font-black font-mono text-auric tabular-nums drop-shadow-[0_0_20px_rgba(255,193,7,0.3)]">
+                      <span className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black font-mono text-auric tabular-nums drop-shadow-[0_0_20px_rgba(255,193,7,0.3)] break-all">
                         {user.real_credits_balance.toFixed(3)}
                       </span>
-                      <span className="text-gray-500 text-sm font-mono">USDC</span>
+                      <span className="text-gray-500 text-sm font-mono flex-shrink-0">USDC</span>
                     </div>
                   </div>
 
