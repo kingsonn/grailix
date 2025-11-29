@@ -128,7 +128,7 @@ export default function ClaimFaucetButton() {
     if (!window.ethereum) {
       const installUrl = "https://metamask.app.link/dapp/" + window.location.host;
       window.open(installUrl, "_blank");
-      alert("Opening wallet app — please try the Add Token action again there.");
+      alert("Opening the wallet app — please try the Add Token action again there.");
       return;
     }
 
