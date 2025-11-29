@@ -143,34 +143,64 @@ Output format:
 /**
  * Fetch current price from Binance for crypto predictions
  * Required for reference_type = "current"
+ * Includes retry logic and timeout for GitHub Actions reliability
  */
-async function fetchCurrentPrice(ticker: string): Promise<number | null> {
-  try {
-    // Ensure ticker ends with USDT for Binance API
-    const symbol = ticker.toUpperCase().endsWith("USDT") 
-      ? ticker.toUpperCase() 
-      : `${ticker.toUpperCase()}USDT`;
+async function fetchCurrentPrice(ticker: string, retries = 3): Promise<number | null> {
+  const symbol = ticker.toUpperCase().endsWith("USDT") 
+    ? ticker.toUpperCase() 
+    : `${ticker.toUpperCase()}USDT`;
 
-    const response = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`);
-    
-    if (!response.ok) {
-      console.error(`❌ Binance API error for ${symbol}: ${response.status}`);
-      return null;
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      console.log(`🔄 Fetching price for ${symbol} (attempt ${attempt}/${retries})...`);
+      
+      // Add timeout to prevent hanging
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+      const response = await fetch(
+        `https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`,
+        { signal: controller.signal }
+      );
+      
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        console.error(`❌ Binance API error for ${symbol}: ${response.status}`);
+        if (attempt < retries) {
+          console.log(`⏳ Retrying in 2 seconds...`);
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          continue;
+        }
+        return null;
+      }
+
+      const data = await response.json();
+      const price = parseFloat(data.price);
+
+      if (isNaN(price) || price <= 0) {
+        console.error(`❌ Invalid price from Binance for ${symbol}: ${data.price}`);
+        return null;
+      }
+
+      console.log(`✅ Fetched price for ${symbol}: ${price}`);
+      return price;
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        console.error(`❌ Timeout fetching price for ${symbol} (attempt ${attempt}/${retries})`);
+      } else {
+        console.error(`❌ Failed to fetch price for ${ticker} (attempt ${attempt}/${retries}):`, error);
+      }
+      
+      if (attempt < retries) {
+        console.log(`⏳ Retrying in 2 seconds...`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
     }
-
-    const data = await response.json();
-    const price = parseFloat(data.price);
-
-    if (isNaN(price) || price <= 0) {
-      console.error(`❌ Invalid price from Binance for ${symbol}: ${data.price}`);
-      return null;
-    }
-
-    return price;
-  } catch (error) {
-    console.error(`❌ Failed to fetch price for ${ticker}:`, error);
-    return null;
   }
+
+  console.error(`❌ All ${retries} attempts failed for ${symbol}`);
+  return null;
 }
 
 // ---------- Question Generation ----------
@@ -314,6 +344,19 @@ async function processRow(row: {
     createdPrice = await fetchCurrentPrice(ticker);
     if (createdPrice === null) {
       console.log(`❌ SKIPPED id=${id} - failed to fetch current price for crypto`);
+      
+      // Mark as processed to avoid infinite retries
+      const { error: markError } = await supabase
+        .from("ai_raw_inputs")
+        .update({ processed: true })
+        .eq("id", id);
+      
+      if (markError) {
+        console.error(`⚠️ Failed to mark failed crypto row as processed id=${id}:`, markError);
+      } else {
+        console.log(`✅ Marked failed crypto row id=${id} as processed (price fetch failed)`);
+      }
+      
       return;
     }
     console.log(`💰 Created price: ${createdPrice}`);
