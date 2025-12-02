@@ -33,7 +33,7 @@ export default function PredictClient() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedPosition, setSelectedPosition] = useState<"YES" | "NO" | null>(null);
-  const [stakeAmount, setStakeAmount] = useState(10);
+  const [stakeAmount, setStakeAmount] = useState(1);
   const [category, setCategory] = useState<"all" | "stock" | "crypto">("all");
   const [timeLeft, setTimeLeft] = useState("");
   const [timeToBettingClose, setTimeToBettingClose] = useState("");
@@ -55,6 +55,18 @@ export default function PredictClient() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [address, isConnected]);
+
+  // Set smart default stake based on balance
+  useEffect(() => {
+    if (user?.real_credits_balance) {
+      const balance = user.real_credits_balance;
+      if (balance < 20) {
+        setStakeAmount(Math.min(1, balance));
+      } else {
+        setStakeAmount(Math.min(10, balance));
+      }
+    }
+  }, [user?.real_credits_balance]);
 
   // Fetch next prediction with optional excluded IDs
   const fetchNextPrediction = async (excludedIds?: number[], isPreFetch: boolean = false) => {
@@ -82,12 +94,12 @@ export default function PredictClient() {
         
         // If no prediction found
         if (!newPrediction) {
-          // Only reset and retry if we have ONLY skipped cards (not voted)
-          // This allows users to see skipped cards again, but not voted cards
-          if (skippedIds.length > 0 && votedIds.length === 0) {
+          // Reset skipped cards and retry (keep voted cards excluded)
+          if (skippedIds.length > 0) {
             setSkippedIds([]); // Reset skipped list
-            // Fetch again without exclusions
-            const resetUrl = `/api/predictions/next?user_wallet_address=${user.wallet_address}&asset_type=${category}`;
+            // Fetch again excluding only voted IDs
+            const votedIdsOnly = votedIds.join(',');
+            const resetUrl = `/api/predictions/next?user_wallet_address=${user.wallet_address}&asset_type=${category}${votedIdsOnly ? `&exclude_ids=${votedIdsOnly}` : ''}`;
             const resetResponse = await fetch(resetUrl);
             const resetData = await resetResponse.json();
             
@@ -346,6 +358,28 @@ export default function PredictClient() {
   // Handle stake submission with position parameter
   const handleStake = async (position: "YES" | "NO") => {
     if (!user || !prediction) return;
+    
+    // Prevent trading with insufficient balance
+    if ((user?.real_credits_balance || 0) < 1 || stakeAmount < 1) {
+      showToast(
+        "error",
+        "Insufficient Balance",
+        "You need at least 1 USDC to make a prediction.",
+        3000
+      );
+      return;
+    }
+    
+    // Prevent trading if stake exceeds balance
+    if (stakeAmount > (user?.real_credits_balance || 0)) {
+      showToast(
+        "error",
+        "Insufficient Balance",
+        `You only have ${user?.real_credits_balance || 0} USDC available.`,
+        3000
+      );
+      return;
+    }
 
     // Store current prediction info for toast
     const currentQuestion = prediction.prediction_text;
@@ -441,11 +475,11 @@ export default function PredictClient() {
 
   return (
     <AppLayout>
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 pb-32">
         {/* Terminal Header with Back Button and Filters */}
         {isConnected && user && (
           <div className="bg-void-black border border-grail/30 rounded-lg overflow-hidden shadow-xl mb-4">
-            {/* Terminal Title Bar */}
+            {/* Terminal Title Bar with Filters */}
             <div className="bg-gradient-to-r from-void-graphite to-void-graphite/80 border-b border-grail/30 px-4 py-2 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Link
@@ -458,23 +492,8 @@ export default function PredictClient() {
                   <span className="text-xs font-mono tracking-wider hidden sm:inline">BACK</span>
                 </Link>
                 <div className="w-px h-4 bg-grail/30"></div>
-                <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-grail animate-pulse shadow-lg shadow-grail/50"></div>
-                  <span className="text-gray-400 text-xs font-mono tracking-wider">PREDICTION_MARKET</span>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 bg-grail/10 px-2.5 py-1 rounded-full border border-grail/30">
-                <div className="w-1.5 h-1.5 rounded-full bg-grail animate-pulse shadow-lg shadow-grail/50"></div>
-                <span className="text-grail-light text-xs font-mono font-bold">ACTIVE</span>
-              </div>
-            </div>
-            
-            {/* Filters and Stake Amount */}
-            <div className="p-4 space-y-4">
-              {/* Category Filters */}
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-gray-500 text-xs font-mono uppercase mr-2">Filter:</span>
-                <div className="flex gap-2">
+                {/* Filters in Header */}
+                <div className="flex gap-1.5">
                   {[
                     { value: "all", label: "All", icon: "🌐" },
                     { value: "stock", label: "Stocks", icon: "📈" },
@@ -483,49 +502,21 @@ export default function PredictClient() {
                     <button
                       key={cat.value}
                       onClick={() => setCategory(cat.value as any)}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-xs font-bold transition-all active:scale-95 ${
+                      className={`flex items-center gap-1 px-2 py-1 rounded-md font-mono text-xs font-bold transition-all active:scale-95 ${
                         category === cat.value
-                          ? "bg-gradient-to-r from-grail to-grail-light text-white shadow-lg shadow-grail/30 border border-grail/50"
-                          : "bg-void-graphite text-gray-400 md:hover:text-white md:hover:bg-void-graphite/60 border border-grail/20"
+                          ? "bg-gradient-to-r from-grail to-grail-light text-white shadow-md shadow-grail/20 border border-grail/50"
+                          : "bg-void-graphite/50 text-gray-400 md:hover:text-white md:hover:bg-void-graphite border border-grail/10"
                       }`}
                     >
-                      <span className="text-sm">{cat.icon}</span>
-                      <span className="hidden sm:inline">{cat.label}</span>
+                      <span className="text-xs">{cat.icon}</span>
+                      <span className="hidden sm:inline text-[10px]">{cat.label}</span>
                     </button>
                   ))}
                 </div>
               </div>
-
-              {/* Stake Amount Slider */}
-              <div className="bg-void-graphite/50 border border-grail/20 rounded-lg p-3 sm:p-4">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-                  {/* Label and Value */}
-                  <div className="flex items-center justify-between sm:justify-start gap-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-1 h-1 rounded-full bg-auric"></div>
-                      <label className="text-xs font-mono text-gray-500 uppercase whitespace-nowrap">Default_Stake</label>
-                    </div>
-                    <div className="flex items-center gap-2 bg-auric/10 px-3 py-1.5 rounded-lg border border-auric/30">
-                      <span className="text-auric text-xl sm:text-2xl font-bold font-mono tabular-nums">{stakeAmount}</span>
-                      <span className="text-xs font-mono text-gray-400">USDC</span>
-                    </div>
-                  </div>
-
-                  {/* Slider */}
-                  <div className="flex-1 py-2 sm:py-0">
-                    <input
-                      type="range"
-                      min="1"
-                      max={user?.real_credits_balance || 100}
-                      value={stakeAmount}
-                      onChange={(e) => setStakeAmount(Number(e.target.value))}
-                      className="w-full h-3 sm:h-2 bg-void-graphite rounded-lg appearance-none cursor-pointer slider-thumb"
-                      style={{
-                        background: `linear-gradient(to right, rgb(125, 44, 255) 0%, rgb(125, 44, 255) ${((stakeAmount - 1) / ((user?.real_credits_balance || 100) - 1)) * 100}%, rgb(31, 41, 55) ${((stakeAmount - 1) / ((user?.real_credits_balance || 100) - 1)) * 100}%, rgb(31, 41, 55) 100%)`
-                      }}
-                    />
-                  </div>
-                </div>
+              <div className="flex items-center gap-2 bg-grail/10 px-2.5 py-1 rounded-full border border-grail/30">
+                <div className="w-1.5 h-1.5 rounded-full bg-grail animate-pulse shadow-lg shadow-grail/50"></div>
+                <span className="text-grail-light text-xs font-mono font-bold">ACTIVE</span>
               </div>
             </div>
           </div>
@@ -899,6 +890,131 @@ export default function PredictClient() {
           </div>
         )}
       </div>
+
+      {/* Fixed Bottom Bar - Stake Amount Slider */}
+      {isConnected && user && prediction && (
+        <div className="fixed bottom-0 left-0 right-0 bg-void-black/95 backdrop-blur-lg border-t border-grail/30 shadow-2xl z-40">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3 sm:py-4">
+            {(user?.real_credits_balance || 0) < 1 ? (
+              // Zero Balance Message
+              <div className="flex items-center justify-center gap-3 py-2">
+                <div className="flex items-center gap-2 bg-loss/10 px-4 py-2 rounded-lg border border-loss/30">
+                  <span className="text-loss text-sm font-mono font-bold">Insufficient Balance</span>
+                </div>
+                <Link
+                  href="/wallet"
+                  className="bg-gradient-to-r from-auric to-auric/80 text-void-black px-4 py-2 rounded-lg font-mono text-sm font-bold md:hover:from-auric/90 transition-all active:scale-95"
+                >
+                  Add Balance
+                </Link>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 sm:gap-4">
+                {/* Label - Hidden on mobile */}
+                <div className="hidden sm:flex items-center gap-2 flex-shrink-0">
+                  <div className="w-1 h-1 rounded-full bg-auric"></div>
+                  <label className="text-xs font-mono text-gray-500 uppercase whitespace-nowrap">Stake</label>
+                </div>
+
+                {/* Slider - Whole numbers only, disabled if balance is 1 */}
+                <div className="flex-1 min-w-0">
+                  <input
+                    type="range"
+                    min="1"
+                    max={Math.max(1, Math.floor(user?.real_credits_balance || 100))}
+                    step="1"
+                    value={Math.min(Math.floor(typeof stakeAmount === 'number' ? stakeAmount : parseFloat(stakeAmount) || 1), Math.floor(user?.real_credits_balance || 100))}
+                    onChange={(e) => setStakeAmount(Number(e.target.value))}
+                    disabled={(user?.real_credits_balance || 0) <= 1}
+                    className={`w-full h-2 bg-void-graphite rounded-lg appearance-none slider-thumb ${
+                      (user?.real_credits_balance || 0) <= 1 ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+                    }`}
+                    style={{
+                      background: (user?.real_credits_balance || 0) <= 1 
+                        ? 'rgb(125, 44, 255)'
+                        : `linear-gradient(to right, rgb(125, 44, 255) 0%, rgb(125, 44, 255) ${((Math.min(Math.floor(typeof stakeAmount === 'number' ? stakeAmount : parseFloat(stakeAmount) || 1), Math.floor(user?.real_credits_balance || 100)) - 1) / (Math.max(1, Math.floor(user?.real_credits_balance || 100)) - 1)) * 100}%, rgb(31, 41, 55) ${((Math.min(Math.floor(typeof stakeAmount === 'number' ? stakeAmount : parseFloat(stakeAmount) || 1), Math.floor(user?.real_credits_balance || 100)) - 1) / (Math.max(1, Math.floor(user?.real_credits_balance || 100)) - 1)) * 100}%, rgb(31, 41, 55) 100%)`
+                    }}
+                  />
+                </div>
+
+                {/* Manual Input Box - Improved UX */}
+                <div className="flex items-center gap-1.5 sm:gap-2 bg-auric/10 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg border border-auric/30 flex-shrink-0">
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={stakeAmount}
+                    onChange={(e) => {
+                      const input = e.target.value;
+                      
+                      // Allow empty string for better UX
+                      if (input === '') {
+                        setStakeAmount('' as any);
+                        return;
+                      }
+                      
+                      // Prevent multiple decimal points
+                      const decimalCount = (input.match(/\./g) || []).length;
+                      if (decimalCount > 1) {
+                        return;
+                      }
+                      
+                      // Only allow numbers and single decimal point
+                      if (!/^\d*\.?\d*$/.test(input)) {
+                        return;
+                      }
+                      
+                      // Allow partial input like "5." or "0." or just "."
+                      if (input.endsWith('.') || input === '.') {
+                        setStakeAmount(input as any);
+                        return;
+                      }
+                      
+                      const val = parseFloat(input);
+                      const maxBalance = user?.real_credits_balance || 100;
+                      
+                      // Allow any valid number input, only cap when exceeding balance
+                      if (!isNaN(val)) {
+                        if (val > maxBalance) {
+                          setStakeAmount(maxBalance);
+                        } else {
+                          setStakeAmount(input as any);
+                        }
+                      } else {
+                        setStakeAmount(input as any);
+                      }
+                    }}
+                    onBlur={(e) => {
+                      const input = e.target.value;
+                      
+                      // Handle empty or invalid input
+                      if (input === '' || input === '.' || input === '0' || input === '0.') {
+                        const balance = user?.real_credits_balance || 0;
+                        setStakeAmount(balance < 20 ? Math.min(1, balance) : Math.min(10, balance));
+                        return;
+                      }
+                      
+                      const val = parseFloat(input);
+                      const maxBalance = user?.real_credits_balance || 100;
+                      
+                      if (isNaN(val) || val < 1) {
+                        const balance = user?.real_credits_balance || 0;
+                        setStakeAmount(balance < 20 ? Math.min(1, balance) : Math.min(10, balance));
+                      } else if (val > maxBalance) {
+                        setStakeAmount(maxBalance);
+                      } else {
+                        setStakeAmount(val);
+                      }
+                    }}
+                    onFocus={(e) => e.target.select()}
+                    className="w-14 sm:w-20 text-auric text-base sm:text-lg font-bold font-mono tabular-nums bg-transparent outline-none text-right"
+                  />
+                  <span className="text-[10px] sm:text-xs font-mono text-gray-400 whitespace-nowrap">USDC</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </AppLayout>
   );
 }

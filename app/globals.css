@@ -343,6 +343,18 @@ input[type="range"].slider-thumb::-moz-range-thumb:active {
   box-shadow: 0 0 20px rgba(232, 197, 71, 1);
 }
 
+/* Hide number input spinners */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
 @layer utilities {
   .text-balance {
     text-wrap: balance;

@@ -51,6 +51,10 @@ type PriceSources = {
   yahoo?: number | null;
   binance?: number | null;
   coinbase?: number | null;
+  coingecko?: number | null;
+  bybit?: number | null;
+  mexc?: number | null;
+  dexscreener?: number | null;
 };
 
 type PriceData = {
@@ -179,76 +183,236 @@ function getOpeningPrice(data: any): number | undefined {
 }
 
 /**
- * Fetch crypto price from Binance
+ * Fetch crypto price from Binance 1-minute candle at specific timestamp
+ * Returns the opening price of the candle
  */
-async function fetchBinancePrice(symbol: string): Promise<number | null> {
+async function fetchBinanceCandlePrice(symbol: string, timestamp: number): Promise<number | null> {
   try {
-    // Ensure symbol ends with USDT
     const binanceSymbol = symbol.toUpperCase().endsWith("USDT")
       ? symbol.toUpperCase()
       : `${symbol.toUpperCase()}USDT`;
 
-    const url = `https://api.binance.com/api/v3/ticker/price?symbol=${binanceSymbol}`;
+    // Binance klines API: timestamp should be in milliseconds
+    const url = `https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=1m&startTime=${timestamp}&limit=1`;
     const response = await fetch(url);
 
     if (!response.ok) {
-      console.error(`❌ Binance API error for ${binanceSymbol}: ${response.status}`);
+      console.error(`❌ Binance candle API error for ${binanceSymbol}: ${response.status}`);
       return null;
     }
 
     const data = await response.json();
-    const price = parseFloat(data.price);
-
-    if (isNaN(price) || price <= 0) {
-      console.error(`❌ Invalid Binance price for ${binanceSymbol}: ${data.price}`);
+    if (!data || data.length === 0) {
+      console.error(`❌ No Binance candle data for ${binanceSymbol} at ${timestamp}`);
       return null;
     }
 
-    return price;
+    // Binance kline format: [openTime, open, high, low, close, volume, ...]
+    const openPrice = parseFloat(data[0][1]);
+
+    if (isNaN(openPrice) || openPrice <= 0) {
+      console.error(`❌ Invalid Binance candle price for ${binanceSymbol}`);
+      return null;
+    }
+
+    console.log(`✅ Binance candle price for ${binanceSymbol} at ${new Date(timestamp).toISOString()}: ${openPrice}`);
+    return openPrice;
   } catch (error) {
-    console.error(`❌ Binance fetch failed for ${symbol}:`, error);
+    console.error(`❌ Binance candle fetch failed for ${symbol}:`, error);
     return null;
   }
 }
 
 /**
- * Fetch crypto price from Coinbase
+ * Fetch crypto price from Bybit 1-minute candle at specific timestamp
+ * Returns the opening price of the candle
  */
-async function fetchCoinbasePrice(symbol: string): Promise<number | null> {
+async function fetchBybitCandlePrice(symbol: string, timestamp: number): Promise<number | null> {
   try {
-    // Convert BTCUSDT -> BTC-USD
-    const baseSymbol = symbol.toUpperCase().replace("USDT", "");
-    const coinbaseSymbol = `${baseSymbol}-USD`;
+    const bybitSymbol = symbol.toUpperCase().endsWith("USDT")
+      ? symbol.toUpperCase()
+      : `${symbol.toUpperCase()}USDT`;
 
-    const url = `https://api.coinbase.com/v2/prices/${coinbaseSymbol}/spot`;
+    // Bybit kline API: timestamp in milliseconds
+    const url = `https://api.bybit.com/v5/market/kline?category=spot&symbol=${bybitSymbol}&interval=1&start=${timestamp}&limit=1`;
     const response = await fetch(url);
 
     if (!response.ok) {
-      console.error(`❌ Coinbase API error for ${coinbaseSymbol}: ${response.status}`);
+      console.error(`❌ Bybit candle API error for ${bybitSymbol}: ${response.status}`);
       return null;
     }
 
     const data = await response.json();
-    const price = parseFloat(data?.data?.amount);
-
-    if (isNaN(price) || price <= 0) {
-      console.error(`❌ Invalid Coinbase price for ${coinbaseSymbol}: ${data?.data?.amount}`);
+    const candles = data?.result?.list;
+    
+    if (!candles || candles.length === 0) {
+      console.error(`❌ No Bybit candle data for ${bybitSymbol} at ${timestamp}`);
       return null;
     }
 
-    return price;
+    // Bybit kline format: [startTime, open, high, low, close, volume, turnover]
+    const openPrice = parseFloat(candles[0][1]);
+
+    if (isNaN(openPrice) || openPrice <= 0) {
+      console.error(`❌ Invalid Bybit candle price for ${bybitSymbol}`);
+      return null;
+    }
+
+    console.log(`✅ Bybit candle price for ${bybitSymbol} at ${new Date(timestamp).toISOString()}: ${openPrice}`);
+    return openPrice;
   } catch (error) {
-    console.error(`❌ Coinbase fetch failed for ${symbol}:`, error);
+    console.error(`❌ Bybit candle fetch failed for ${symbol}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Fetch crypto price from MEXC 1-minute candle at specific timestamp
+ * Returns the opening price of the candle
+ */
+async function fetchMEXCCandlePrice(symbol: string, timestamp: number): Promise<number | null> {
+  try {
+    const mexcSymbol = symbol.toUpperCase().endsWith("USDT")
+      ? symbol.toUpperCase()
+      : `${symbol.toUpperCase()}USDT`;
+
+    // MEXC klines API: timestamp in milliseconds
+    const url = `https://api.mexc.com/api/v3/klines?symbol=${mexcSymbol}&interval=1m&startTime=${timestamp}&limit=1`;
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      console.error(`❌ MEXC candle API error for ${mexcSymbol}: ${response.status}`);
+      return null;
+    }
+
+    const data = await response.json();
+    if (!data || data.length === 0) {
+      console.error(`❌ No MEXC candle data for ${mexcSymbol} at ${timestamp}`);
+      return null;
+    }
+
+    // MEXC kline format: [openTime, open, high, low, close, volume, ...]
+    const openPrice = parseFloat(data[0][1]);
+
+    if (isNaN(openPrice) || openPrice <= 0) {
+      console.error(`❌ Invalid MEXC candle price for ${mexcSymbol}`);
+      return null;
+    }
+
+    console.log(`✅ MEXC candle price for ${mexcSymbol} at ${new Date(timestamp).toISOString()}: ${openPrice}`);
+    return openPrice;
+  } catch (error) {
+    console.error(`❌ MEXC candle fetch failed for ${symbol}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Fetch crypto price from DEX Screener candles at specific timestamp
+ * First searches for the token, then tries to fetch candles
+ * Falls back to current price if candles are unavailable
+ */
+async function fetchDEXScreenerCandlePrice(symbol: string, timestamp: number): Promise<number | null> {
+  try {
+    const baseSymbol = symbol.toUpperCase().replace("USDT", "");
+    
+    // Step 1: Search for the token
+    const searchUrl = `https://api.dexscreener.com/latest/dex/search?q=${baseSymbol}`;
+    console.log(`🔍 Searching DEX Screener for ${baseSymbol}...`);
+    const searchResponse = await fetch(searchUrl);
+
+    if (!searchResponse.ok) {
+      console.error(`❌ DEX Screener search error for ${baseSymbol}: ${searchResponse.status}`);
+      return null;
+    }
+
+    const searchData = await searchResponse.json();
+    const pairs = searchData?.pairs;
+
+    if (!pairs || pairs.length === 0) {
+      console.error(`❌ No pairs found on DEX Screener for ${baseSymbol}`);
+      return null;
+    }
+
+    // Step 2: Find pair with highest liquidity
+    let highestLiquidityPair = pairs[0];
+    let maxLiquidity = parseFloat(highestLiquidityPair?.liquidity?.usd || "0");
+
+    for (const pair of pairs) {
+      const liquidity = parseFloat(pair?.liquidity?.usd || "0");
+      if (liquidity > maxLiquidity) {
+        maxLiquidity = liquidity;
+        highestLiquidityPair = pair;
+      }
+    }
+
+    const chainId = highestLiquidityPair.chainId;
+    const pairAddress = highestLiquidityPair.pairAddress;
+    console.log(`📊 Found pair on ${chainId}: ${pairAddress} (liquidity: $${maxLiquidity.toFixed(2)})`);
+
+    // Step 3: Try to fetch candles for the pair
+    const unixTimestamp = Math.floor(timestamp / 1000);
+    const candleUrl = `https://api.dexscreener.com/latest/dex/candles/${chainId}/${pairAddress}?interval=1m&from=${unixTimestamp}&to=${unixTimestamp + 60}`;
+    console.log(`🕯️ Fetching candles from: ${candleUrl}`);
+    
+    const candleResponse = await fetch(candleUrl);
+
+    if (!candleResponse.ok) {
+      console.warn(`⚠️ DEX Screener candle API error (${candleResponse.status}), falling back to current price`);
+      
+      // Fallback: Use current price from search result
+      const currentPrice = parseFloat(highestLiquidityPair?.priceUsd);
+      if (isNaN(currentPrice) || currentPrice <= 0) {
+        console.error(`❌ Invalid current price from DEX Screener for ${baseSymbol}`);
+        return null;
+      }
+      
+      console.log(`✅ DEX Screener current price for ${baseSymbol}: ${currentPrice} (chain: ${chainId}, liquidity: $${maxLiquidity.toFixed(2)})`);
+      return currentPrice;
+    }
+
+    const candleData = await candleResponse.json();
+    const candles = candleData?.candles;
+
+    if (!candles || candles.length === 0) {
+      console.warn(`⚠️ No DEX Screener candle data at timestamp, using current price`);
+      
+      // Fallback: Use current price from search result
+      const currentPrice = parseFloat(highestLiquidityPair?.priceUsd);
+      if (isNaN(currentPrice) || currentPrice <= 0) {
+        console.error(`❌ Invalid current price from DEX Screener for ${baseSymbol}`);
+        return null;
+      }
+      
+      console.log(`✅ DEX Screener current price for ${baseSymbol}: ${currentPrice} (chain: ${chainId}, liquidity: $${maxLiquidity.toFixed(2)})`);
+      return currentPrice;
+    }
+
+    // DEX Screener candle format: {timestamp, open, high, low, close, volume}
+    const openPrice = parseFloat(candles[0].open);
+
+    if (isNaN(openPrice) || openPrice <= 0) {
+      console.error(`❌ Invalid DEX Screener candle price for ${baseSymbol}`);
+      return null;
+    }
+
+    console.log(`✅ DEX Screener candle price for ${baseSymbol} at ${new Date(timestamp).toISOString()}: ${openPrice} (chain: ${chainId}, liquidity: $${maxLiquidity.toFixed(2)})`);
+    return openPrice;
+  } catch (error) {
+    console.error(`❌ DEX Screener candle fetch failed for ${symbol}:`, error);
     return null;
   }
 }
 
 /**
  * Fetch all relevant prices for a prediction
+ * For crypto: fetches 1-minute OHLC candle at expiry_timestamp
+ * For stocks: fetches current/historical prices from Yahoo
  */
 async function fetchPrices(
   asset: string,
-  assetType: string
+  assetType: string,
+  expiryTimestamp?: string
 ): Promise<PriceData | null> {
   const sources: PriceSources = {};
   let final_price: number | undefined;
@@ -265,16 +429,40 @@ async function fetchPrices(
       previous_close = yahooData.previous_close;
     }
   } else if (assetType === "crypto") {
-    // Try Binance first, fallback to Coinbase
-    const binancePrice = await fetchBinancePrice(asset);
+    // Convert expiry timestamp to milliseconds
+    if (!expiryTimestamp) {
+      console.error(`❌ No expiry timestamp provided for crypto ${asset}`);
+      return null;
+    }
+
+    const timestampMs = new Date(expiryTimestamp).getTime();
+    console.log(`🕒 Fetching candle for ${asset} at ${expiryTimestamp} (${timestampMs}ms)`);
+
+    // Try Binance first, fallback to Bybit, MEXC, then DEX Screener
+    const binancePrice = await fetchBinanceCandlePrice(asset, timestampMs);
     if (binancePrice) {
       sources.binance = binancePrice;
       final_price = binancePrice;
     } else {
-      const coinbasePrice = await fetchCoinbasePrice(asset);
-      if (coinbasePrice) {
-        sources.coinbase = coinbasePrice;
-        final_price = coinbasePrice;
+      console.log(`⚠️ Binance failed for ${asset}, trying Bybit...`);
+      const bybitPrice = await fetchBybitCandlePrice(asset, timestampMs);
+      if (bybitPrice) {
+        sources.bybit = bybitPrice;
+        final_price = bybitPrice;
+      } else {
+        console.log(`⚠️ Bybit failed for ${asset}, trying MEXC...`);
+        const mexcPrice = await fetchMEXCCandlePrice(asset, timestampMs);
+        if (mexcPrice) {
+          sources.mexc = mexcPrice;
+          final_price = mexcPrice;
+        } else {
+          console.log(`⚠️ MEXC failed for ${asset}, trying DEX Screener...`);
+          const dexPrice = await fetchDEXScreenerCandlePrice(asset, timestampMs);
+          if (dexPrice) {
+            sources.dexscreener = dexPrice;
+            final_price = dexPrice;
+          }
+        }
       }
     }
   }
@@ -652,7 +840,7 @@ async function resolvePrediction(prediction: PredictionRow): Promise<void> {
   try {
     // Step 1: Fetch prices
     console.log(`📡 Fetching prices for ${asset}...`);
-    const priceData = await fetchPrices(asset, asset_type);
+    const priceData = await fetchPrices(asset, asset_type, prediction.expiry_timestamp);
 
     if (!priceData) {
       console.error(`❌ No price data available for ${asset} - reverting to pending`);

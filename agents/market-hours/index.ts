@@ -242,6 +242,7 @@ export function stockExpiryDecision(now?: DateTimeType): {
 
 /**
  * Determine crypto expiry and betting close based on sentiment strength
+ * Expiry timestamps are normalized to whole minutes (seconds and milliseconds set to 0)
  */
 export function cryptoExpiryDecision(
   sentimentStrength: "strong" | "weak" | "neutral",
@@ -263,7 +264,11 @@ export function cryptoExpiryDecision(
     windowHours = Math.random() > 0.5 ? 3 : 6;
   }
 
-  const expiry = currentTime.plus({ hours: windowHours }).startOf("minute");
+  // Add window hours and normalize to whole minute (set seconds and milliseconds to 0)
+  const expiry = currentTime
+    .plus({ hours: windowHours })
+    .set({ second: 0, millisecond: 0 });
+  
   const bettingCloseOffset = windowHours === 3 ? 30 : 60;
   const bettingClose = expiry.minus({ minutes: bettingCloseOffset });
 

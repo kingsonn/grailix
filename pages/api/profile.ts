@@ -108,7 +108,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // User doesn't exist - create new user
     const newUser: Omit<User, "id" | "created_at" | "updated_at"> = {
       wallet_address: normalizedAddress,
-      real_credits_balance: 0, // Start with 0, must deposit MockUSDC
+      real_credits_balance: 2000, // Start with 2000 USDC welcome bonus
       xp: 0,
       streak: 0,
       accuracy: 0,

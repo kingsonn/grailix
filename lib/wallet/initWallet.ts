@@ -1,7 +1,18 @@
 import { http } from "wagmi";
 import { bscTestnet } from "wagmi/chains";
 import { getDefaultConfig } from "@rainbow-me/rainbowkit";
-import { injectedWallet, metaMaskWallet } from "@rainbow-me/rainbowkit/wallets";
+import { 
+  injectedWallet, 
+  metaMaskWallet,
+  coinbaseWallet,
+  trustWallet,
+  okxWallet,
+  walletConnectWallet,
+  rainbowWallet,
+  zerionWallet,
+  rabbyWallet,
+  safeWallet
+} from "@rainbow-me/rainbowkit/wallets";
 
 /**
  * Wallet Client Singleton
@@ -62,8 +73,24 @@ export function getWalletClient(): ReturnType<typeof getDefaultConfig> {
       chains: [bscTestnet],
       wallets: [
         {
-          groupName: "Recommended",
-          wallets: [injectedWallet, metaMaskWallet],
+          groupName: "Popular",
+          wallets: [
+            metaMaskWallet,
+            okxWallet,
+            trustWallet,
+            coinbaseWallet,
+            injectedWallet, // Catches any other injected wallet (Binance, Phantom, etc.)
+          ],
+        },
+        {
+          groupName: "More",
+          wallets: [
+            walletConnectWallet,
+            rainbowWallet,
+            zerionWallet,
+            rabbyWallet,
+            safeWallet,
+          ],
         },
       ],
       transports: {

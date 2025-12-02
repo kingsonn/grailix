@@ -142,64 +142,226 @@ Output format:
 
 /**
  * Fetch current price from Binance for crypto predictions
- * Required for reference_type = "current"
- * Includes retry logic and timeout for GitHub Actions reliability
  */
-async function fetchCurrentPrice(ticker: string, retries = 3): Promise<number | null> {
+async function fetchBinancePrice(ticker: string): Promise<number | null> {
   const symbol = ticker.toUpperCase().endsWith("USDT") 
     ? ticker.toUpperCase() 
     : `${ticker.toUpperCase()}USDT`;
 
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+    const response = await fetch(
+      `https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`,
+      { signal: controller.signal }
+    );
+    
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      console.error(`❌ Binance API error for ${symbol}: ${response.status}`);
+      return null;
+    }
+
+    const data = await response.json();
+    const price = parseFloat(data.price);
+
+    if (isNaN(price) || price <= 0) {
+      console.error(`❌ Invalid price from Binance for ${symbol}: ${data.price}`);
+      return null;
+    }
+
+    console.log(`✅ Binance price for ${symbol}: ${price}`);
+    return price;
+  } catch (error: any) {
+    console.error(`❌ Binance fetch failed for ${symbol}:`, error.message);
+    return null;
+  }
+}
+
+/**
+ * Fetch current price from Bybit for crypto predictions
+ */
+async function fetchBybitPrice(ticker: string): Promise<number | null> {
+  const symbol = ticker.toUpperCase().endsWith("USDT") 
+    ? ticker.toUpperCase() 
+    : `${ticker.toUpperCase()}USDT`;
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+    const response = await fetch(
+      `https://api.bybit.com/v5/market/tickers?category=spot&symbol=${symbol}`,
+      { signal: controller.signal }
+    );
+    
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      console.error(`❌ Bybit API error for ${symbol}: ${response.status}`);
+      return null;
+    }
+
+    const data = await response.json();
+    const price = parseFloat(data?.result?.list?.[0]?.lastPrice);
+
+    if (isNaN(price) || price <= 0) {
+      console.error(`❌ Invalid price from Bybit for ${symbol}`);
+      return null;
+    }
+
+    console.log(`✅ Bybit price for ${symbol}: ${price}`);
+    return price;
+  } catch (error: any) {
+    console.error(`❌ Bybit fetch failed for ${symbol}:`, error.message);
+    return null;
+  }
+}
+
+/**
+ * Fetch current price from MEXC for crypto predictions
+ */
+async function fetchMEXCPrice(ticker: string): Promise<number | null> {
+  const symbol = ticker.toUpperCase().endsWith("USDT") 
+    ? ticker.toUpperCase() 
+    : `${ticker.toUpperCase()}USDT`;
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+    const response = await fetch(
+      `https://api.mexc.com/api/v3/ticker/price?symbol=${symbol}`,
+      { signal: controller.signal }
+    );
+    
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      console.error(`❌ MEXC API error for ${symbol}: ${response.status}`);
+      return null;
+    }
+
+    const data = await response.json();
+    const price = parseFloat(data.price);
+
+    if (isNaN(price) || price <= 0) {
+      console.error(`❌ Invalid price from MEXC for ${symbol}`);
+      return null;
+    }
+
+    console.log(`✅ MEXC price for ${symbol}: ${price}`);
+    return price;
+  } catch (error: any) {
+    console.error(`❌ MEXC fetch failed for ${symbol}:`, error.message);
+    return null;
+  }
+}
+
+/**
+ * Fetch current price from DEX Screener for crypto predictions
+ * First searches for the token, then fetches price from highest liquidity pair
+ */
+async function fetchDEXScreenerPrice(ticker: string): Promise<number | null> {
+  try {
+    const baseSymbol = ticker.toUpperCase().replace("USDT", "");
+    
+    // Step 1: Search for the token
+    const controller1 = new AbortController();
+    const timeoutId1 = setTimeout(() => controller1.abort(), 10000);
+
+    const searchResponse = await fetch(
+      `https://api.dexscreener.com/latest/dex/search?q=${baseSymbol}`,
+      { signal: controller1.signal }
+    );
+    
+    clearTimeout(timeoutId1);
+
+    if (!searchResponse.ok) {
+      console.error(`❌ DEX Screener search error for ${baseSymbol}: ${searchResponse.status}`);
+      return null;
+    }
+
+    const searchData = await searchResponse.json();
+    const pairs = searchData?.pairs;
+
+    if (!pairs || pairs.length === 0) {
+      console.error(`❌ No pairs found on DEX Screener for ${baseSymbol}`);
+      return null;
+    }
+
+    // Step 2: Find pair with highest liquidity
+    let highestLiquidityPair = pairs[0];
+    let maxLiquidity = parseFloat(highestLiquidityPair?.liquidity?.usd || "0");
+
+    for (const pair of pairs) {
+      const liquidity = parseFloat(pair?.liquidity?.usd || "0");
+      if (liquidity > maxLiquidity) {
+        maxLiquidity = liquidity;
+        highestLiquidityPair = pair;
+      }
+    }
+
+    const price = parseFloat(highestLiquidityPair?.priceUsd);
+
+    if (isNaN(price) || price <= 0) {
+      console.error(`❌ Invalid price from DEX Screener for ${baseSymbol}`);
+      return null;
+    }
+
+    console.log(`✅ DEX Screener price for ${baseSymbol}: ${price} (chain: ${highestLiquidityPair.chainId}, liquidity: $${maxLiquidity.toFixed(2)})`);
+    return price;
+  } catch (error: any) {
+    console.error(`❌ DEX Screener fetch failed for ${ticker}:`, error.message);
+    return null;
+  }
+}
+
+/**
+ * Fetch current price with fallback: Binance → Bybit → MEXC → DEX Screener
+ * Required for reference_type = "current"
+ * Includes retry logic and timeout for GitHub Actions reliability
+ */
+async function fetchCurrentPrice(ticker: string, retries = 3): Promise<number | null> {
   for (let attempt = 1; attempt <= retries; attempt++) {
-    try {
-      console.log(`🔄 Fetching price for ${symbol} (attempt ${attempt}/${retries})...`);
-      
-      // Add timeout to prevent hanging
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    console.log(`🔄 Fetching price for ${ticker} (attempt ${attempt}/${retries})...`);
+    
+    // Try Binance first
+    const binancePrice = await fetchBinancePrice(ticker);
+    if (binancePrice) {
+      return binancePrice;
+    }
 
-      const response = await fetch(
-        `https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`,
-        { signal: controller.signal }
-      );
-      
-      clearTimeout(timeoutId);
+    // Fallback to Bybit
+    console.log(`⚠️ Binance failed, trying Bybit...`);
+    const bybitPrice = await fetchBybitPrice(ticker);
+    if (bybitPrice) {
+      return bybitPrice;
+    }
 
-      if (!response.ok) {
-        console.error(`❌ Binance API error for ${symbol}: ${response.status}`);
-        if (attempt < retries) {
-          console.log(`⏳ Retrying in 2 seconds...`);
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          continue;
-        }
-        return null;
-      }
+    // Fallback to MEXC
+    console.log(`⚠️ Bybit failed, trying MEXC...`);
+    const mexcPrice = await fetchMEXCPrice(ticker);
+    if (mexcPrice) {
+      return mexcPrice;
+    }
 
-      const data = await response.json();
-      const price = parseFloat(data.price);
+    // Final fallback to DEX Screener
+    console.log(`⚠️ MEXC failed, trying DEX Screener...`);
+    const dexPrice = await fetchDEXScreenerPrice(ticker);
+    if (dexPrice) {
+      return dexPrice;
+    }
 
-      if (isNaN(price) || price <= 0) {
-        console.error(`❌ Invalid price from Binance for ${symbol}: ${data.price}`);
-        return null;
-      }
-
-      console.log(`✅ Fetched price for ${symbol}: ${price}`);
-      return price;
-    } catch (error: any) {
-      if (error.name === 'AbortError') {
-        console.error(`❌ Timeout fetching price for ${symbol} (attempt ${attempt}/${retries})`);
-      } else {
-        console.error(`❌ Failed to fetch price for ${ticker} (attempt ${attempt}/${retries}):`, error);
-      }
-      
-      if (attempt < retries) {
-        console.log(`⏳ Retrying in 2 seconds...`);
-        await new Promise(resolve => setTimeout(resolve, 2000));
-      }
+    if (attempt < retries) {
+      console.log(`⏳ All sources failed, retrying in 2 seconds...`);
+      await new Promise(resolve => setTimeout(resolve, 2000));
     }
   }
 
-  console.error(`❌ All ${retries} attempts failed for ${symbol}`);
+  console.error(`❌ All ${retries} attempts failed for ${ticker} (tried Binance + Bybit + MEXC + DEX Screener)`);
   return null;
 }
 
