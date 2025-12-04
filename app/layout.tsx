@@ -7,14 +7,50 @@ import { ToastProvider } from "@/components/ToastContainer";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "GRAILIX - Outsmart the Market",
-  description: "Professional prediction markets powered by blockchain. Make informed predictions and win rewards.",
-  keywords: ["prediction market", "crypto", "trading", "blockchain", "web3", "predictions"],
+  title: "Grailix – AI-Powered YES/NO Market Predictions | Fast, Fun, Autonomous",
+  description:
+    "Grailix turns real market news into simple YES/NO prediction cards. Swipe on stocks & crypto, stake mockUSDC, and get fast, transparent outcomes powered by autonomous AI. Try the next generation of financial prediction.",
+  keywords: [
+    "prediction markets",
+    "AI predictions",
+    "crypto predictions",
+    "stock predictions",
+    "yes no markets",
+    "autonomous AI trading",
+    "market news predictions",
+    "gamified finance",
+    "swiping interface",
+    "USDC prediction app",
+  ],
   authors: [{ name: "Grailix" }],
   openGraph: {
-    title: "GRAILIX - Outsmart the Market",
-    description: "Professional prediction markets powered by blockchain",
+    title: "Grailix – Predict Markets in One Swipe",
+    description:
+      "Real news → Clean YES/NO prediction cards. Fast resolution, transparent payouts, fully autonomous AI.",
     type: "website",
+    siteName: "Grailix",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Grailix – AI Market Predictions",
+    description:
+      "Swipe through AI-generated YES/NO predictions powered by real market news. Fast, fun, and global.",
+  },
+  icons: {
+    icon: [
+      { url: "/favicon/favicon.ico" },
+      { url: "/favicon/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon/android-chrome-192x192.png", sizes: "192x192", type: "image/png" },
+      { url: "/favicon/android-chrome-512x512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: "/favicon/apple-touch-icon.png",
+    other: [
+      {
+        rel: "manifest",
+        url: "/favicon/site.webmanifest",
+      },
+    ],
   },
 };
 
