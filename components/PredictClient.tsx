@@ -43,6 +43,13 @@ export default function PredictClient() {
   const [localBalance, setLocalBalance] = useState<number | null>(null); // Local balance for optimistic updates
   const [isBalanceLoading, setIsBalanceLoading] = useState(false); // Balance loading state
   
+  // View mode states
+  const [viewMode, setViewMode] = useState<"single" | "multi">("single");
+  const [allPredictions, setAllPredictions] = useState<Prediction[]>([]);
+  const [infoModalPrediction, setInfoModalPrediction] = useState<Prediction | null>(null);
+  const [swipingCardId, setSwipingCardId] = useState<number | null>(null);
+  const [cardSwipeX, setCardSwipeX] = useState(0);
+  
   // Swipe gesture states
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
   const [touchCurrent, setTouchCurrent] = useState<{ x: number; y: number } | null>(null);
@@ -142,6 +149,27 @@ export default function PredictClient() {
     }
   };
 
+  // Fetch all predictions for multi-view mode
+  const fetchAllPredictions = async () => {
+    if (!user) return;
+    
+    try {
+      const excludeIds = votedIds.join(',');
+      const url = `/api/predictions/list?user_wallet_address=${user.wallet_address}&asset_type=${category}&limit=20${excludeIds ? `&exclude_ids=${excludeIds}` : ''}`;
+      
+      const response = await fetch(url);
+      const data = await response.json();
+      
+      if (data.success && data.data.predictions) {
+        // Filter out any predictions that are in votedIds (in case API doesn't support exclude)
+        const filtered = data.data.predictions.filter((p: Prediction) => !votedIds.includes(p.id));
+        setAllPredictions(filtered);
+      }
+    } catch (err) {
+      console.error("Error fetching all predictions:", err);
+    }
+  };
+
   // Pre-fetch next prediction in background
   const preFetchNext = async () => {
     if (!user || !prediction) return;
@@ -157,10 +185,15 @@ export default function PredictClient() {
       setIsLoading(true); // Show loading only on initial load or category change
       setSkippedIds([]); // Reset skipped IDs when category changes
       setVotedIds([]); // Reset voted IDs when category changes
-      fetchNextPrediction().finally(() => setIsLoading(false));
+      
+      if (viewMode === "single") {
+        fetchNextPrediction().finally(() => setIsLoading(false));
+      } else {
+        fetchAllPredictions().finally(() => setIsLoading(false));
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, category]);
+  }, [user, category, viewMode]);
 
   // Reset betting closed state and submitting when prediction changes
   useEffect(() => {
@@ -468,6 +501,104 @@ export default function PredictClient() {
     }
   };
 
+  // Handle stake for multi-view mode (removes card after voting)
+  const handleMultiViewStake = async (pred: Prediction, position: "YES" | "NO") => {
+    if (!user) return;
+    
+    // Prevent trading with insufficient balance
+    if ((user?.real_credits_balance || 0) < 1 || stakeAmount < 1) {
+      showToast("error", "Insufficient Balance", "You need at least 1 USDC to make a prediction.", 3000);
+      return;
+    }
+    
+    if (stakeAmount > (user?.real_credits_balance || 0)) {
+      showToast("error", "Insufficient Balance", `You only have ${user?.real_credits_balance || 0} USDC available.`, 3000);
+      return;
+    }
+
+    // Add to votedIds and remove from allPredictions immediately
+    setVotedIds(prev => [...prev, pred.id]);
+    setAllPredictions(prev => prev.filter(p => p.id !== pred.id));
+    
+    // Optimistically update balance
+    const currentBalance = localBalance ?? user.real_credits_balance;
+    setLocalBalance(currentBalance - stakeAmount);
+    setIsBalanceLoading(true);
+
+    // Submit stake in background
+    try {
+      const response = await fetch("/api/predictions/stake", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          wallet_address: user.wallet_address,
+          prediction_id: pred.id,
+          position: position,
+          stake_credits: stakeAmount,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        showToast("success", `Predicted: ${position}`, pred.prediction_text, 5000);
+        setTimeout(() => setIsBalanceLoading(false), 500);
+      } else {
+        showToast("error", "Prediction Failed", data.error || "Failed to submit stake", 5000);
+        setLocalBalance(null);
+        setIsBalanceLoading(false);
+        // Re-add the prediction if failed
+        setAllPredictions(prev => [pred, ...prev]);
+        setVotedIds(prev => prev.filter(id => id !== pred.id));
+      }
+    } catch (err) {
+      console.error("Error staking:", err);
+      showToast("error", "Prediction Failed", "Network error. Please try again.", 5000);
+      setLocalBalance(null);
+      setIsBalanceLoading(false);
+      setAllPredictions(prev => [pred, ...prev]);
+      setVotedIds(prev => prev.filter(id => id !== pred.id));
+    }
+  };
+
+  // Mini card swipe handlers for multi-view
+  const handleMiniCardTouchStart = (e: React.TouchEvent, predId: number) => {
+    const touch = e.touches[0];
+    setSwipingCardId(predId);
+    setTouchStart({ x: touch.clientX, y: touch.clientY });
+    setCardSwipeX(0);
+  };
+
+  const handleMiniCardTouchMove = (e: React.TouchEvent) => {
+    if (!touchStart || swipingCardId === null) return;
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - touchStart.x;
+    setCardSwipeX(deltaX);
+  };
+
+  const handleMiniCardTouchEnd = (pred: Prediction) => {
+    if (!touchStart || swipingCardId === null) {
+      setSwipingCardId(null);
+      setTouchStart(null);
+      setCardSwipeX(0);
+      return;
+    }
+
+    const threshold = 80;
+    
+    if (cardSwipeX > threshold) {
+      // Swipe right = YES
+      handleMultiViewStake(pred, "YES");
+    } else if (cardSwipeX < -threshold) {
+      // Swipe left = NO
+      handleMultiViewStake(pred, "NO");
+    }
+    
+    setSwipingCardId(null);
+    setTouchStart(null);
+    setCardSwipeX(0);
+  };
+
   // Calculate sentiment percentages
   const totalVotes = prediction ? prediction.sentiment_yes + prediction.sentiment_no : 0;
   const yesPercent = totalVotes > 0 ? Math.round((prediction!.sentiment_yes / totalVotes) * 100) : 50;
@@ -480,8 +611,8 @@ export default function PredictClient() {
         {isConnected && user && (
           <div className="bg-void-black border border-grail/30 rounded-lg overflow-hidden shadow-xl mb-4">
             {/* Terminal Title Bar with Filters */}
-            <div className="bg-gradient-to-r from-void-graphite to-void-graphite/80 border-b border-grail/30 px-4 py-2 flex items-center justify-between">
-              <div className="flex items-center gap-3">
+            <div className="bg-gradient-to-r from-void-graphite to-void-graphite/80 border-b border-grail/30 px-3 sm:px-4 py-2 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                 <Link
                   href="/"
                   className="flex items-center gap-2 text-gray-400 md:hover:text-grail-light transition-colors group"
@@ -493,7 +624,7 @@ export default function PredictClient() {
                 </Link>
                 <div className="w-px h-4 bg-grail/30"></div>
                 {/* Filters in Header */}
-                <div className="flex gap-1.5">
+                <div className="flex gap-1 sm:gap-1.5 overflow-x-auto flex-nowrap no-scrollbar -mx-1 px-1">
                   {[
                     { value: "all", label: "All", icon: "🌐" },
                     { value: "stock", label: "Stocks", icon: "📈" },
@@ -502,28 +633,56 @@ export default function PredictClient() {
                     <button
                       key={cat.value}
                       onClick={() => setCategory(cat.value as any)}
-                      className={`flex items-center gap-1 px-2 py-1 rounded-md font-mono text-xs font-bold transition-all active:scale-95 ${
+                      className={`flex items-center gap-1 px-2 py-0.5 sm:py-1 rounded-md font-mono text-[10px] sm:text-xs font-bold transition-all active:scale-95 ${
                         category === cat.value
                           ? "bg-gradient-to-r from-grail to-grail-light text-white shadow-md shadow-grail/20 border border-grail/50"
                           : "bg-void-graphite/50 text-gray-400 md:hover:text-white md:hover:bg-void-graphite border border-grail/10"
                       }`}
                     >
-                      <span className="text-xs">{cat.icon}</span>
-                      <span className="hidden sm:inline text-[10px]">{cat.label}</span>
+                      <span className="text-xs sm:text-[11px] leading-none">{cat.icon}</span>
+                      <span className="hidden sm:inline text-[10px] leading-none">{cat.label}</span>
                     </button>
                   ))}
                 </div>
               </div>
-              <div className="flex items-center gap-2 bg-grail/10 px-2.5 py-1 rounded-full border border-grail/30">
-                <div className="w-1.5 h-1.5 rounded-full bg-grail animate-pulse shadow-lg shadow-grail/50"></div>
-                <span className="text-grail-light text-xs font-mono font-bold">ACTIVE</span>
-              </div>
+              {/* View Mode Toggle */}
+              <button
+                onClick={() => setViewMode(viewMode === "single" ? "multi" : "single")}
+                className="relative flex-shrink-0 flex items-center gap-1 bg-void-graphite/80 p-0.5 sm:p-1 rounded-full border border-grail/30 transition-all"
+              >
+                <div
+                  className={`absolute h-5 w-10 sm:h-6 sm:w-12 bg-gradient-to-r from-grail to-grail-light rounded-full transition-all duration-300 ease-out ${
+                    viewMode === "multi" ? "translate-x-10 sm:translate-x-[48px]" : "translate-x-0"
+                  }`}
+                />
+                <div
+                  className={`relative z-10 flex items-center justify-center w-10 h-5 sm:w-12 sm:h-6 rounded-full text-[9px] sm:text-[10px] font-mono font-bold transition-colors duration-300 ${
+                    viewMode === "single" ? "text-white" : "text-gray-400"
+                  }`}
+                >
+                  <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <rect x="3" y="3" width="18" height="18" rx="2" strokeWidth={2} />
+                  </svg>
+                </div>
+                <div
+                  className={`relative z-10 flex items-center justify-center w-10 h-5 sm:w-12 sm:h-6 rounded-full text-[9px] sm:text-[10px] font-mono font-bold transition-colors duration-300 ${
+                    viewMode === "multi" ? "text-white" : "text-gray-400"
+                  }`}
+                >
+                  <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <rect x="3" y="3" width="7" height="7" rx="1" strokeWidth={2} />
+                    <rect x="14" y="3" width="7" height="7" rx="1" strokeWidth={2} />
+                    <rect x="3" y="14" width="7" height="7" rx="1" strokeWidth={2} />
+                    <rect x="14" y="14" width="7" height="7" rx="1" strokeWidth={2} />
+                  </svg>
+                </div>
+              </button>
             </div>
           </div>
         )}
 
         {/* Empty State - No Predictions Available */}
-        {isConnected && user && !isLoading && !prediction && (
+        {isConnected && user && !isLoading && ((viewMode === "single" && !prediction) || (viewMode === "multi" && allPredictions.length === 0)) && (
           <div className="bg-void-black border border-grail/30 rounded-lg overflow-hidden shadow-xl">
             <div className="bg-gradient-to-r from-void-graphite to-void-graphite/80 border-b border-grail/30 px-4 py-2">
               <div className="flex items-center gap-2">
@@ -614,15 +773,235 @@ export default function PredictClient() {
         )}
 
         {/* Loading State */}
-        {isConnected && isLoading && !prediction && (
+        {isConnected && isLoading && (
           <div className="grail-card rounded-2xl p-12 text-center">
             <div className="inline-block animate-spin rounded-full h-16 w-16 border-4 border-grail border-t-transparent mb-4"></div>
-            <p className="text-grail-pale text-lg">Loading next prediction...</p>
+            <p className="text-grail-pale text-lg">Loading predictions...</p>
           </div>
         )}
 
-        {/* Prediction Card - Terminal Style */}
-        {isConnected && user && prediction && !isLoading && (
+        {/* Multi-View Mode - Grid of minimalistic cards */}
+        {isConnected && user && viewMode === "multi" && allPredictions.length > 0 && !isLoading && (
+          <div className="fade-in">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {allPredictions.map((pred) => {
+                const predTotalVotes = pred.sentiment_yes + pred.sentiment_no;
+                const predYesPercent = predTotalVotes > 0 ? Math.round((pred.sentiment_yes / predTotalVotes) * 100) : 50;
+                const predNoPercent = predTotalVotes > 0 ? Math.round((pred.sentiment_no / predTotalVotes) * 100) : 50;
+                const isSwipingThis = swipingCardId === pred.id;
+                
+                return (
+                  <div
+                    key={pred.id}
+                    className="bg-void-black border border-grail/30 rounded-lg overflow-hidden shadow-lg relative"
+                    style={{
+                      transform: isSwipingThis ? `translateX(${cardSwipeX}px) rotate(${cardSwipeX / 30}deg)` : 'none',
+                      transition: isSwipingThis ? 'none' : 'transform 0.3s ease-out',
+                      opacity: isSwipingThis ? Math.max(0.5, 1 - Math.abs(cardSwipeX) / 200) : 1,
+                    }}
+                    onTouchStart={(e) => handleMiniCardTouchStart(e, pred.id)}
+                    onTouchMove={handleMiniCardTouchMove}
+                    onTouchEnd={() => handleMiniCardTouchEnd(pred)}
+                  >
+                    {/* Swipe indicators */}
+                    {isSwipingThis && cardSwipeX > 30 && (
+                      <div className="absolute inset-0 bg-profit/20 flex items-center justify-center z-10 pointer-events-none">
+                        <span className="text-profit text-2xl font-bold font-mono">YES</span>
+                      </div>
+                    )}
+                    {isSwipingThis && cardSwipeX < -30 && (
+                      <div className="absolute inset-0 bg-loss/20 flex items-center justify-center z-10 pointer-events-none">
+                        <span className="text-loss text-2xl font-bold font-mono">NO</span>
+                      </div>
+                    )}
+                    
+                    {/* Card Header */}
+                    <div className="p-3 border-b border-grail/20">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <div className="w-8 h-8 rounded-md bg-gradient-to-br from-grail/20 to-grail/5 border border-grail/30 flex items-center justify-center text-sm">
+                            {pred.asset_type === "crypto" ? "₿" : "📈"}
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-bold font-mono text-white">{pred.asset}</h4>
+                            <p className="text-[10px] text-gray-500 uppercase font-mono">{pred.asset_type}</p>
+                          </div>
+                        </div>
+                        {/* Info Button */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setInfoModalPrediction(pred);
+                          }}
+                          className="p-1.5 rounded-md bg-void-graphite/50 border border-grail/20 text-gray-400 hover:text-white hover:border-grail/40 transition-colors"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {/* Question */}
+                    <div className="p-3">
+                      <p className="text-xs text-gray-300 font-mono leading-relaxed line-clamp-3">
+                        {pred.prediction_text}
+                      </p>
+                    </div>
+                    
+                    {/* Sentiment Bar (no labels) */}
+                    <div className="px-3 pb-2">
+                      <div className="relative h-1.5 bg-void-graphite rounded-full overflow-hidden">
+                        <div
+                          className="absolute left-0 top-0 h-full bg-loss transition-all duration-300"
+                          style={{ width: `${predNoPercent}%` }}
+                        />
+                        <div
+                          className="absolute right-0 top-0 h-full bg-profit transition-all duration-300"
+                          style={{ width: `${predYesPercent}%` }}
+                        />
+                      </div>
+                      <div className="flex justify-between mt-1">
+                        <span className="text-[10px] font-mono text-gray-500">{predTotalVotes} votes</span>
+                      </div>
+                    </div>
+                    
+                    {/* Action Buttons */}
+                    <div className="p-2 bg-void-graphite/30 border-t border-grail/20">
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          onClick={() => handleMultiViewStake(pred, "NO")}
+                          className="bg-loss/20 hover:bg-loss/30 border border-loss/30 text-loss font-bold py-2 rounded-md text-xs font-mono transition-all active:scale-95"
+                        >
+                          NO
+                        </button>
+                        <button
+                          onClick={() => handleMultiViewStake(pred, "YES")}
+                          className="bg-profit/20 hover:bg-profit/30 border border-profit/30 text-profit font-bold py-2 rounded-md text-xs font-mono transition-all active:scale-95"
+                        >
+                          YES
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Info Modal */}
+        {infoModalPrediction && (
+          <div 
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setInfoModalPrediction(null)}
+          >
+            <div 
+              className="bg-void-black border border-grail/30 rounded-lg max-w-lg w-full max-h-[80vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div className="bg-gradient-to-r from-void-graphite to-void-graphite/80 border-b border-grail/30 px-4 py-3 flex items-center justify-between sticky top-0">
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-neon animate-pulse"></div>
+                  <span className="text-gray-400 text-xs font-mono">PREDICTION_DETAILS</span>
+                </div>
+                <button
+                  onClick={() => setInfoModalPrediction(null)}
+                  className="p-1 rounded-md hover:bg-grail/20 text-gray-400 hover:text-white transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              {/* Modal Content */}
+              <div className="p-4 space-y-4">
+                {/* Asset */}
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-grail/20 to-grail/5 border border-grail/30 flex items-center justify-center text-2xl">
+                    {infoModalPrediction.asset_type === "crypto" ? "₿" : "📈"}
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold font-mono text-white">{infoModalPrediction.asset}</h3>
+                    <p className="text-xs text-gray-500 uppercase font-mono">{infoModalPrediction.asset_type}</p>
+                  </div>
+                </div>
+                
+                {/* Question */}
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-1 h-1 rounded-full bg-grail"></div>
+                    <span className="text-xs font-mono text-gray-500 uppercase">Question</span>
+                  </div>
+                  <p className="text-sm text-gray-200 font-mono leading-relaxed">{infoModalPrediction.prediction_text}</p>
+                </div>
+                
+                {/* Raw Text */}
+                {infoModalPrediction.raw_text && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-1 h-1 rounded-full bg-auric"></div>
+                      <span className="text-xs font-mono text-gray-500 uppercase">Raw_Data</span>
+                    </div>
+                    <p className="text-xs text-gray-400 font-mono leading-relaxed bg-void-graphite/50 p-3 rounded-lg">{infoModalPrediction.raw_text}</p>
+                  </div>
+                )}
+                
+                {/* Sentiment */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-1 h-1 rounded-full bg-grail"></div>
+                      <span className="text-xs font-mono text-gray-500 uppercase">Sentiment</span>
+                    </div>
+                    <span className="text-xs text-gray-500 font-mono">{infoModalPrediction.sentiment_yes + infoModalPrediction.sentiment_no} votes</span>
+                  </div>
+                  <div className="relative h-2 bg-void-graphite rounded-full overflow-hidden mb-2">
+                    <div
+                      className="absolute left-0 top-0 h-full bg-loss"
+                      style={{ width: `${(infoModalPrediction.sentiment_yes + infoModalPrediction.sentiment_no) > 0 ? Math.round((infoModalPrediction.sentiment_no / (infoModalPrediction.sentiment_yes + infoModalPrediction.sentiment_no)) * 100) : 50}%` }}
+                    />
+                    <div
+                      className="absolute right-0 top-0 h-full bg-profit"
+                      style={{ width: `${(infoModalPrediction.sentiment_yes + infoModalPrediction.sentiment_no) > 0 ? Math.round((infoModalPrediction.sentiment_yes / (infoModalPrediction.sentiment_yes + infoModalPrediction.sentiment_no)) * 100) : 50}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-xs font-mono font-bold">
+                    <span className="text-loss">{(infoModalPrediction.sentiment_yes + infoModalPrediction.sentiment_no) > 0 ? Math.round((infoModalPrediction.sentiment_no / (infoModalPrediction.sentiment_yes + infoModalPrediction.sentiment_no)) * 100) : 50}% NO</span>
+                    <span className="text-profit">{(infoModalPrediction.sentiment_yes + infoModalPrediction.sentiment_no) > 0 ? Math.round((infoModalPrediction.sentiment_yes / (infoModalPrediction.sentiment_yes + infoModalPrediction.sentiment_no)) * 100) : 50}% YES</span>
+                  </div>
+                </div>
+                
+                {/* Action Buttons in Modal */}
+                <div className="grid grid-cols-2 gap-3 pt-2">
+                  <button
+                    onClick={() => {
+                      handleMultiViewStake(infoModalPrediction, "NO");
+                      setInfoModalPrediction(null);
+                    }}
+                    className="bg-loss/20 hover:bg-loss/30 border border-loss/30 text-loss font-bold py-3 rounded-lg text-sm font-mono transition-all active:scale-95"
+                  >
+                    NO
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleMultiViewStake(infoModalPrediction, "YES");
+                      setInfoModalPrediction(null);
+                    }}
+                    className="bg-profit/20 hover:bg-profit/30 border border-profit/30 text-profit font-bold py-3 rounded-lg text-sm font-mono transition-all active:scale-95"
+                  >
+                    YES
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Single View - Prediction Card - Terminal Style */}
+        {isConnected && user && viewMode === "single" && prediction && !isLoading && (
           <div className="fade-in">
             {/* Desktop: Multi-grid view, Mobile/Tablet: Single card */}
             <div className="lg:grid lg:grid-cols-2 lg:gap-4">
@@ -892,7 +1271,7 @@ export default function PredictClient() {
       </div>
 
       {/* Fixed Bottom Bar - Stake Amount Slider */}
-      {isConnected && user && prediction && (
+      {isConnected && user && ((viewMode === "single" && prediction) || (viewMode === "multi" && allPredictions.length > 0)) && (
         <div className="fixed bottom-0 left-0 right-0 bg-void-black/95 backdrop-blur-lg border-t border-grail/30 shadow-2xl z-40">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3 sm:py-4">
             {(user?.real_credits_balance || 0) < 1 ? (
