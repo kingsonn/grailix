@@ -313,6 +313,14 @@ export default function PredictClient() {
   const handleTouchMove = (e: React.TouchEvent) => {
     if (!touchStart) return;
     const touch = e.touches[0];
+    const deltaX = touch.clientX - touchStart.x;
+    const deltaY = touch.clientY - touchStart.y;
+    
+    // Prevent horizontal scroll on body during swipe
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 10) {
+      e.preventDefault();
+    }
+    
     setTouchCurrent({ x: touch.clientX, y: touch.clientY });
   };
 
@@ -351,7 +359,7 @@ export default function PredictClient() {
   // Calculate swipe transform and rotation
   const getSwipeStyle = () => {
     if (!touchStart || !touchCurrent || !isSwiping) {
-      return {};
+      return { transition: 'transform 0.3s ease-out' };
     }
 
     const deltaX = touchCurrent.x - touchStart.x;
@@ -362,9 +370,12 @@ export default function PredictClient() {
     // Only apply transform for horizontal swipes or significant vertical swipes (up)
     // Don't transform for small vertical movements (normal scrolling down)
     if (absDeltaX > absDeltaY || deltaY < -50) {
-      const rotation = deltaX / 20; // Rotation based on horizontal movement
+      // Limit the swipe distance to prevent overflow
+      const clampedX = Math.max(-200, Math.min(200, deltaX));
+      const clampedY = Math.min(0, Math.max(-150, deltaY)); // Only allow upward movement
+      const rotation = clampedX / 25; // Slightly reduced rotation
       return {
-        transform: `translate(${deltaX}px, ${deltaY}px) rotate(${rotation}deg)`,
+        transform: `translate(${clampedX}px, ${deltaY < -50 ? clampedY : 0}px) rotate(${rotation}deg)`,
         transition: 'none',
       };
     }
@@ -573,7 +584,15 @@ export default function PredictClient() {
     if (!touchStart || swipingCardId === null) return;
     const touch = e.touches[0];
     const deltaX = touch.clientX - touchStart.x;
-    setCardSwipeX(deltaX);
+    const deltaY = touch.clientY - touchStart.y;
+    
+    // Only track horizontal swipes, prevent vertical scroll interference
+    if (Math.abs(deltaX) > Math.abs(deltaY)) {
+      e.preventDefault();
+      // Clamp the swipe distance for smoother feel
+      const clampedX = Math.max(-120, Math.min(120, deltaX));
+      setCardSwipeX(clampedX);
+    }
   };
 
   const handleMiniCardTouchEnd = (pred: Prediction) => {
@@ -584,7 +603,7 @@ export default function PredictClient() {
       return;
     }
 
-    const threshold = 80;
+    const threshold = 60; // Reduced threshold for easier swiping
     
     if (cardSwipeX > threshold) {
       // Swipe right = YES
@@ -606,7 +625,7 @@ export default function PredictClient() {
 
   return (
     <AppLayout>
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 pb-32">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 pb-32 overflow-x-hidden">
         {/* Terminal Header with Back Button and Filters */}
         {isConnected && user && (
           <div className="bg-void-black border border-grail/30 rounded-lg overflow-hidden shadow-xl mb-4">
