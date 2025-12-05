@@ -213,7 +213,7 @@ export default function WalletClient() {
                   <div className="w-16 h-16 mx-auto mb-4 rounded-lg bg-grail/10 border border-grail/40 flex items-center justify-center shadow-lg shadow-grail/20">
                     <span className="text-3xl">🔐</span>
                   </div>
-                  <h2 className="text-2xl font-black mb-2 text-white font-mono">CONNECT_WALLET</h2>
+                  <h2 className="text-xl font-black mb-2 text-white font-mono">CONNECT_WALLET</h2>
                   <p className="text-gray-400 text-sm font-mono leading-relaxed">
                     Initialize secure connection to access fund management
                   </p>

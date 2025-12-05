@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useAccount } from "wagmi";
 import { useUser } from "@/lib/useUser";
-import WalletConnectButton from "@/components/WalletConnectButton";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
 import ClaimFaucetButton from "@/components/ClaimFaucetButton";
 import AppLayout from "@/components/AppLayout";
 import Link from "next/link";
@@ -24,44 +24,30 @@ export default function HomeClient() {
     <AppLayout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
 
-        {/* Connect Wallet - Terminal Style */}
+        {/* Guest Dashboard - Show when not connected */}
         {!isConnected && (
-          <div className="fade-in py-4 sm:py-6 md:py-8">
-            {/* Terminal Welcome */}
-            <div className="bg-void-black border border-grail/30 rounded-lg overflow-hidden shadow-xl mb-4 sm:mb-6">
-              {/* Terminal Title Bar */}
+          <div className="fade-in py-4 space-y-4">
+            {/* Welcome Hero Section */}
+            <div className="bg-void-black border border-grail/30 rounded-lg overflow-hidden shadow-xl">
               <div className="bg-gradient-to-r from-void-graphite to-void-graphite/80 border-b border-grail/30 px-4 py-2 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-grail animate-pulse shadow-lg shadow-grail/50"></div>
-                  <span className="text-gray-400 text-xs font-mono tracking-wider">SYSTEM_INIT</span>
+                  <span className="text-gray-400 text-xs font-mono tracking-wider">WELCOME_TERMINAL</span>
                 </div>
-                <div className="flex items-center gap-2 bg-grail/10 px-2.5 py-1 rounded-full border border-grail/30">
-                  <div className="w-1.5 h-1.5 rounded-full bg-grail animate-pulse shadow-lg shadow-grail/50"></div>
-                  <span className="text-grail-light text-xs font-mono font-bold">READY</span>
+                <div className="flex items-center gap-2 bg-neon/10 px-2.5 py-1 rounded-full border border-neon/30">
+                  <div className="w-1.5 h-1.5 rounded-full bg-neon animate-pulse shadow-lg shadow-neon/50"></div>
+                  <span className="text-neon text-xs font-mono font-bold">GUEST_MODE</span>
                 </div>
               </div>
               
-              {/* Terminal Content */}
               <div className="p-6 md:p-8">
-                {/* Logo & Tagline */}
-                <div className="text-center mb-8">
-                  <div className="flex items-center justify-center gap-3 mb-3">
-                    <div className="relative w-12 h-12 md:w-16 md:h-16">
-                      <Image
-                        src="/logo.png"
-                        alt="Grailix Logo"
-                        fill
-                        className="object-contain"
-                        priority
-                      />
-                    </div>
-                    <h1 className="text-5xl md:text-6xl font-black font-mono tracking-tight">
-                      <span className="bg-grail-gradient bg-clip-text text-transparent drop-shadow-[0_0_30px_rgba(168,85,247,0.3)]">
-                        GRAILIX
-                      </span>
-                    </h1>
-                  </div>
-                  <p className="text-xl md:text-2xl font-bold text-grail-pale mb-2 font-mono">
+                <div className="text-center mb-6">
+                  <h1 className="text-3xl sm:text-4xl md:text-5xl font-black font-mono tracking-tight mb-3">
+                    <span className="bg-grail-gradient bg-clip-text text-transparent drop-shadow-[0_0_30px_rgba(168,85,247,0.3)]">
+                      WELCOME TO GRAILIX
+                    </span>
+                  </h1>
+                  <p className="text-base md:text-lg font-bold text-grail-pale mb-1 font-mono">
                     Outsmart the Market
                   </p>
                   <p className="text-gray-500 text-sm font-mono">
@@ -69,31 +55,143 @@ export default function HomeClient() {
                   </p>
                 </div>
 
-                {/* Connect Card */}
-                <div className="max-w-md mx-auto bg-gradient-to-br from-grail/5 to-grail/10 border border-grail/30 rounded-lg p-6 md:p-8">
-                  <div className="text-center mb-6">
-                    <div className="w-16 h-16 mx-auto mb-4 rounded-lg bg-grail/10 border border-grail/40 flex items-center justify-center shadow-lg shadow-grail/20">
-                      <span className="text-3xl">🔐</span>
+                {/* Connect CTA */}
+                <div className="max-w-sm mx-auto">
+                  <ConnectButton.Custom>
+                    {({ openConnectModal, mounted }) => {
+                      const ready = mounted;
+                      return (
+                        <div {...(!ready && { "aria-hidden": true, style: { opacity: 0, pointerEvents: "none" } })}>
+                          <button
+                            onClick={openConnectModal}
+                            type="button"
+                            className="w-full grail-button text-white font-bold py-4 px-8 rounded-xl text-lg transition-all hover:scale-105 font-mono"
+                          >
+                            🔐 CONNECT_WALLET
+                          </button>
+                        </div>
+                      );
+                    }}
+                  </ConnectButton.Custom>
+                  <p className="text-center text-gray-500 text-xs font-mono mt-3">
+                    Connect to start predicting and earning
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Guest Quick Access - Explore without wallet */}
+            <div className="bg-void-black border border-grail/30 rounded-lg overflow-hidden shadow-lg">
+              <div className="bg-gradient-to-r from-void-graphite to-void-graphite/80 border-b border-grail/30 px-4 py-2.5 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-neon animate-pulse shadow-lg shadow-neon/50"></div>
+                  <span className="text-gray-400 text-xs font-mono tracking-wider">EXPLORE</span>
+                </div>
+                <span className="text-gray-600 text-xs font-mono">NO_WALLET_REQUIRED</span>
+              </div>
+              <div className="p-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <Link
+                    href="/predict"
+                    prefetch={false}
+                    className="group bg-gradient-to-br from-void-graphite to-grail/5 md:hover:from-grail/10 md:hover:to-grail/20 border border-grail/20 md:hover:border-grail/50 rounded-lg p-4 transition-all md:hover:shadow-lg md:hover:shadow-grail/20 active:scale-95"
+                  >
+                    <div className="text-center">
+                      <div className="text-3xl mb-2 md:group-hover:scale-110 transition-transform">⚡</div>
+                      <p className="text-xs font-mono font-bold text-gray-400 md:group-hover:text-grail-light transition-colors uppercase tracking-wider">Predict</p>
+                      <p className="text-[10px] font-mono text-gray-600 mt-1">Browse markets</p>
                     </div>
-                    <h2 className="text-2xl font-black mb-2 text-white font-mono">WALLET_AUTH</h2>
-                    <p className="text-gray-400 text-sm font-mono leading-relaxed">
-                      Initialize secure connection to access terminal
-                    </p>
-                  </div>
+                  </Link>
                   
-                  <WalletConnectButton />
+                  <Link
+                    href="/predictions"
+                    prefetch={false}
+                    className="group bg-gradient-to-br from-void-graphite to-neon/5 md:hover:from-neon/10 md:hover:to-neon/20 border border-grail/20 md:hover:border-neon/50 rounded-lg p-4 transition-all md:hover:shadow-lg md:hover:shadow-neon/20 active:scale-95"
+                  >
+                    <div className="text-center">
+                      <div className="text-3xl mb-2 md:group-hover:scale-110 transition-transform">📊</div>
+                      <p className="text-xs font-mono font-bold text-gray-400 md:group-hover:text-neon transition-colors uppercase tracking-wider">Markets</p>
+                      <p className="text-[10px] font-mono text-gray-600 mt-1">View all predictions</p>
+                    </div>
+                  </Link>
                   
-                  {/* Features */}
-                  <div className="mt-6 pt-6 border-t border-grail/20 space-y-2">
-                    <div className="flex items-center gap-2 text-xs font-mono text-gray-400">
-                      <div className="w-1 h-1 rounded-full bg-profit"></div>
-                      <span>Predict and earn rewards</span>
+                  <Link
+                    href="/leaderboard"
+                    prefetch={false}
+                    className="group bg-gradient-to-br from-void-graphite to-auric/5 md:hover:from-auric/10 md:hover:to-auric/20 border border-grail/20 md:hover:border-auric/50 rounded-lg p-4 transition-all md:hover:shadow-lg md:hover:shadow-auric/20 active:scale-95"
+                  >
+                    <div className="text-center">
+                      <div className="text-3xl mb-2 md:group-hover:scale-110 transition-transform">🏆</div>
+                      <p className="text-xs font-mono font-bold text-gray-400 md:group-hover:text-auric transition-colors uppercase tracking-wider">Ranks</p>
+                      <p className="text-[10px] font-mono text-gray-600 mt-1">Top predictors</p>
                     </div>
-                    <div className="flex items-center gap-2 text-xs font-mono text-gray-400">
-                      <div className="w-1 h-1 rounded-full bg-auric"></div>
-                      <span>Instant resolution</span>
+                  </Link>
+                  
+                  <Link
+                    href="/wallet"
+                    prefetch={false}
+                    className="group bg-gradient-to-br from-void-graphite to-profit/5 md:hover:from-profit/10 md:hover:to-profit/20 border border-grail/20 md:hover:border-profit/50 rounded-lg p-4 transition-all md:hover:shadow-lg md:hover:shadow-profit/20 active:scale-95"
+                  >
+                    <div className="text-center">
+                      <div className="text-3xl mb-2 md:group-hover:scale-110 transition-transform">💰</div>
+                      <p className="text-xs font-mono font-bold text-gray-400 md:group-hover:text-profit transition-colors uppercase tracking-wider">Wallet</p>
+                      <p className="text-[10px] font-mono text-gray-600 mt-1">Manage funds</p>
                     </div>
+                  </Link>
+                </div>
+              </div>
+            </div>
+
+            {/* Features Preview */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-void-black border border-grail/30 rounded-lg p-5">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-lg bg-profit/10 border border-profit/30 flex items-center justify-center">
+                    <span className="text-xl">📈</span>
                   </div>
+                  <h3 className="font-bold font-mono text-white">PREDICT</h3>
+                </div>
+                <p className="text-gray-400 text-sm font-mono">Forecast stock and crypto price movements with AI-curated predictions</p>
+              </div>
+              
+              <div className="bg-void-black border border-grail/30 rounded-lg p-5">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-lg bg-auric/10 border border-auric/30 flex items-center justify-center">
+                    <span className="text-xl">💎</span>
+                  </div>
+                  <h3 className="font-bold font-mono text-white">EARN</h3>
+                </div>
+                <p className="text-gray-400 text-sm font-mono">Win rewards from the prediction pool when your forecasts are correct</p>
+              </div>
+              
+              <div className="bg-void-black border border-grail/30 rounded-lg p-5">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-lg bg-grail/10 border border-grail/30 flex items-center justify-center">
+                    <span className="text-xl">🔗</span>
+                  </div>
+                  <h3 className="font-bold font-mono text-white">ON-CHAIN</h3>
+                </div>
+                <p className="text-gray-400 text-sm font-mono">All predictions and outcomes are verified on the blockchain</p>
+              </div>
+            </div>
+
+            {/* Status Bar */}
+            <div className="bg-gradient-to-r from-void-black to-void-graphite/50 border border-grail/30 rounded-lg px-4 py-3 shadow-lg">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs font-mono">
+                <div className="flex flex-wrap items-center gap-4">
+                  <div className="flex items-center gap-2 bg-neon/10 px-3 py-1.5 rounded-full border border-neon/30">
+                    <div className="w-1.5 h-1.5 rounded-full bg-neon animate-pulse shadow-lg shadow-neon/50"></div>
+                    <span className="text-gray-500">STATUS:</span>
+                    <span className="text-neon font-bold">GUEST</span>
+                  </div>
+                  <div className="flex items-center gap-2 bg-grail/5 px-3 py-1.5 rounded border border-grail/30">
+                    <span className="text-gray-500">MODE:</span>
+                    <span className="text-grail-pale font-mono">BROWSE_ONLY</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 text-gray-600 bg-void-graphite px-3 py-1.5 rounded border border-grail/20">
+                  <div className="w-1 h-1 rounded-full bg-gray-600"></div>
+                  <span className="tracking-wider">GRAILIX_v1.0</span>
                 </div>
               </div>
             </div>

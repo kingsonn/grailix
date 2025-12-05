@@ -2,7 +2,7 @@
 /**
  * Fetch multiple active predictions for multi-view mode
  * Query params:
- *   ?user_wallet_address=0x... - Required
+ *   ?user_wallet_address=0x... - Optional (for filtering user's staked predictions)
  *   ?asset_type=all|stock|crypto - Filter by asset type
  *   ?exclude_ids=1,2,3 - Exclude specific prediction IDs
  *   ?limit=20 - Number of predictions to fetch
@@ -21,10 +21,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const { user_wallet_address, asset_type, exclude_ids, limit } = req.query;
 
-  if (!user_wallet_address || typeof user_wallet_address !== "string") {
-    return res.status(400).json({ success: false, error: "Missing user_wallet_address" });
-  }
-
   try {
     const supabase = createClient(supabaseUrl, supabaseKey);
     const now = new Date().toISOString();
@@ -36,19 +32,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       excludedIds.push(...exclude_ids.split(",").map(id => parseInt(id.trim())).filter(id => !isNaN(id)));
     }
 
-    // First, get prediction IDs the user has already staked on
-    const { data: userStakes } = await supabase
-      .from("user_prediction_stakes")
-      .select("prediction_id")
-      .eq("user_id", (
-        await supabase
-          .from("users")
-          .select("id")
-          .eq("wallet_address", user_wallet_address.toLowerCase())
-          .single()
-      ).data?.id);
+    // Get user's staked predictions only if wallet address is provided
+    let stakedPredictionIds: number[] = [];
+    if (user_wallet_address && typeof user_wallet_address === "string") {
+      const { data: userData } = await supabase
+        .from("users")
+        .select("id")
+        .eq("wallet_address", user_wallet_address.toLowerCase())
+        .single();
 
-    const stakedPredictionIds = userStakes?.map(s => s.prediction_id) || [];
+      if (userData?.id) {
+        const { data: userStakes } = await supabase
+          .from("user_prediction_stakes")
+          .select("prediction_id")
+          .eq("user_id", userData.id);
+
+        stakedPredictionIds = userStakes?.map(s => s.prediction_id) || [];
+      }
+    }
+
     const allExcludedIds = [...new Set([...excludedIds, ...stakedPredictionIds])];
 
     // Build query for active predictions

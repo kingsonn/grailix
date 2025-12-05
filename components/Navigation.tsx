@@ -4,17 +4,13 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useAccount } from "wagmi";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
 import WalletControl from "./WalletControl";
 import NotificationBell from "./NotificationBell";
 
 export default function Navigation() {
   const pathname = usePathname();
   const { isConnected } = useAccount();
-  
-  // Hide navbar on home page when not connected
-  if (pathname === "/" && !isConnected) {
-    return null;
-  }
 
   const navItems = [
     { href: "/", label: "Dashboard", icon: "📊" },
@@ -45,16 +41,35 @@ export default function Navigation() {
             </h1>
           </Link>
 
-          {/* Notifications & Wallet Control - Only show when connected */}
-          {isConnected && (
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <NotificationBell />
-              <WalletControl />
-            </div>
-          )}
+          {/* Wallet Controls */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {isConnected ? (
+              <>
+                <NotificationBell />
+                <WalletControl />
+              </>
+            ) : (
+              <ConnectButton.Custom>
+                {({ openConnectModal, mounted }) => {
+                  const ready = mounted;
+                  return (
+                    <div {...(!ready && { "aria-hidden": true, style: { opacity: 0, pointerEvents: "none" } })}>
+                      <button
+                        onClick={openConnectModal}
+                        type="button"
+                        className="flex items-center gap-2 text-xs sm:text-sm px-3 sm:px-4 py-2 bg-gradient-to-r from-grail to-grail-light hover:from-grail-light hover:to-grail text-white border border-grail/50 rounded-lg transition-all font-mono font-bold shadow-lg shadow-grail/20"
+                      >
+                        <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></div>
+                        <span>CONNECT</span>
+                      </button>
+                    </div>
+                  );
+                }}
+              </ConnectButton.Custom>
+            )}
+          </div>
         </div>
       </div>
-
     </nav>
   );
 }

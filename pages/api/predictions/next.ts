@@ -14,11 +14,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     const { user_wallet_address, asset_type, exclude_ids } = req.query;
 
-    // Validate input
-    if (!user_wallet_address || typeof user_wallet_address !== "string") {
-      return res.status(400).json({ success: false, error: "user_wallet_address is required" });
-    }
-
     // Validate asset_type if provided
     const validAssetTypes = ["crypto", "stock", "all"];
     const filterAssetType = asset_type && typeof asset_type === "string" ? asset_type.toLowerCase() : "all";
@@ -33,33 +28,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       excludeIds.push(...ids);
     }
 
-    // Normalize wallet address to lowercase
-    const normalizedAddress = user_wallet_address.toLowerCase().trim();
+    // Track swiped predictions (only if user is logged in)
+    let swipedPredictionIds: number[] = [];
 
-    // Get user ID from wallet address
-    const { data: user, error: userError } = await supabase
-      .from("users")
-      .select("id")
-      .eq("wallet_address", normalizedAddress)
-      .single();
+    // If wallet address provided, get user's staked predictions
+    if (user_wallet_address && typeof user_wallet_address === "string") {
+      const normalizedAddress = user_wallet_address.toLowerCase().trim();
 
-    if (userError || !user) {
-      return res.status(404).json({ success: false, error: "User not found" });
+      // Get user ID from wallet address
+      const { data: user, error: userError } = await supabase
+        .from("users")
+        .select("id")
+        .eq("wallet_address", normalizedAddress)
+        .single();
+
+      if (!userError && user) {
+        // Get all prediction IDs the user has already staked on
+        const { data: userStakes, error: stakesError } = await supabase
+          .from("user_prediction_stakes")
+          .select("prediction_id")
+          .eq("user_id", user.id);
+
+        if (!stakesError && userStakes) {
+          swipedPredictionIds = userStakes.map((stake) => stake.prediction_id);
+        }
+      }
     }
-
-    // Get all prediction IDs the user has already staked on
-    const { data: userStakes, error: stakesError } = await supabase
-      .from("user_prediction_stakes")
-      .select("prediction_id")
-      .eq("user_id", user.id);
-
-    if (stakesError) {
-      console.error("Error fetching user stakes:", stakesError);
-      return res.status(500).json({ success: false, error: "DB fetch failure" });
-    }
-
-    // Extract prediction IDs user has already swiped
-    const swipedPredictionIds = userStakes?.map((stake) => stake.prediction_id) || [];
 
     // Combine swiped IDs and excluded IDs (from skip)
     const allExcludedIds = [...swipedPredictionIds, ...excludeIds];

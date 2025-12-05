@@ -35,6 +35,9 @@ export default function PredictionsPage() {
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [expandedReport, setExpandedReport] = useState<number | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const ITEMS_PER_PAGE = 10;
 
   // Fetch predictions based on active tab
   const fetchPredictions = async (type: TabType, silent = false) => {
@@ -66,6 +69,8 @@ export default function PredictionsPage() {
 
   // Fetch on mount and tab change
   useEffect(() => {
+    // Reset pagination when switching tabs
+    setCurrentPage(1);
     fetchPredictions(activeTab);
   }, [activeTab]);
 
@@ -77,6 +82,13 @@ export default function PredictionsPage() {
 
     return () => clearInterval(interval);
   }, [activeTab]);
+
+  // Derive paginated slice
+  const totalPages = Math.max(1, Math.ceil(predictions.length / ITEMS_PER_PAGE));
+  const safePage = Math.min(currentPage, totalPages);
+  const startIndex = (safePage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const paginatedPredictions = predictions.slice(startIndex, endIndex);
 
   return (
     <AppLayout>
@@ -203,7 +215,7 @@ export default function PredictionsPage() {
         {/* Predictions List */}
         {!isLoading && predictions.length > 0 && (
           <div className="space-y-4">
-            {predictions.map((pred) => (
+            {paginatedPredictions.map((pred) => (
               <div key={pred.id} className="bg-void-black border border-grail/30 rounded-lg overflow-hidden shadow-xl">
                 <div className="bg-gradient-to-r from-void-graphite to-void-graphite/80 border-b border-grail/30 px-4 py-2">
                   <div className="flex items-center justify-between">
@@ -404,6 +416,32 @@ export default function PredictionsPage() {
                 </div>
               </div>
             ))}
+
+            {/* Pagination Controls */}
+            <div className="mt-4 bg-void-black border border-grail/30 rounded-lg px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-mono">
+              <div className="text-gray-500">
+                SHOWING {startIndex + 1}-{Math.min(endIndex, predictions.length)} OF {predictions.length}
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                  disabled={safePage === 1}
+                  className="px-3 py-1 rounded-lg border border-grail/30 bg-void-graphite text-gray-300 hover:text-white hover:border-grail/50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  ◀ PREV
+                </button>
+                <span className="text-gray-500">
+                  PAGE {safePage} / {totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                  disabled={safePage === totalPages}
+                  className="px-3 py-1 rounded-lg border border-grail/30 bg-void-graphite text-gray-300 hover:text-white hover:border-grail/50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  NEXT ▶
+                </button>
+              </div>
+            </div>
           </div>
         )}
 

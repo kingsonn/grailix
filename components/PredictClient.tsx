@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useAccount } from "wagmi";
 import { useUser } from "@/lib/useUser";
-import WalletConnectButton from "@/components/WalletConnectButton";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
 import AppLayout from "@/components/AppLayout";
 import Link from "next/link";
 import { useToast } from "@/components/ToastContainer";
@@ -54,6 +54,10 @@ export default function PredictClient() {
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
   const [touchCurrent, setTouchCurrent] = useState<{ x: number; y: number } | null>(null);
   const [isSwiping, setIsSwiping] = useState(false);
+  
+  // Double tap to skip (Instagram-style)
+  const [lastTapTime, setLastTapTime] = useState(0);
+  const [showSkipAnimation, setShowSkipAnimation] = useState(false);
 
   // Auto-refresh user data on wallet connection
   useEffect(() => {
@@ -75,9 +79,8 @@ export default function PredictClient() {
     }
   }, [user?.real_credits_balance]);
 
-  // Fetch next prediction with optional excluded IDs
+  // Fetch next prediction with optional excluded IDs (works for guests too)
   const fetchNextPrediction = async (excludedIds?: number[], isPreFetch: boolean = false) => {
-    if (!user) return;
 
     if (!isPreFetch) {
       setError(null);
@@ -91,7 +94,9 @@ export default function PredictClient() {
       const idsToExclude = excludedIds !== undefined ? excludedIds : skippedIds;
       const allExcludedIds = [...new Set([...idsToExclude, ...votedIds])]; // Combine and deduplicate
       const excludeIds = allExcludedIds.join(',');
-      const url = `/api/predictions/next?user_wallet_address=${user.wallet_address}&asset_type=${category}${excludeIds ? `&exclude_ids=${excludeIds}` : ''}`;
+      // For guests, skip the wallet parameter
+      const walletParam = user?.wallet_address ? `user_wallet_address=${user.wallet_address}&` : '';
+      const url = `/api/predictions/next?${walletParam}asset_type=${category}${excludeIds ? `&exclude_ids=${excludeIds}` : ''}`;
       
       const response = await fetch(url);
       const data = await response.json();
@@ -106,7 +111,8 @@ export default function PredictClient() {
             setSkippedIds([]); // Reset skipped list
             // Fetch again excluding only voted IDs
             const votedIdsOnly = votedIds.join(',');
-            const resetUrl = `/api/predictions/next?user_wallet_address=${user.wallet_address}&asset_type=${category}${votedIdsOnly ? `&exclude_ids=${votedIdsOnly}` : ''}`;
+            const walletParamReset = user?.wallet_address ? `user_wallet_address=${user.wallet_address}&` : '';
+            const resetUrl = `/api/predictions/next?${walletParamReset}asset_type=${category}${votedIdsOnly ? `&exclude_ids=${votedIdsOnly}` : ''}`;
             const resetResponse = await fetch(resetUrl);
             const resetData = await resetResponse.json();
             
@@ -149,13 +155,13 @@ export default function PredictClient() {
     }
   };
 
-  // Fetch all predictions for multi-view mode
+  // Fetch all predictions for multi-view mode (works for guests too)
   const fetchAllPredictions = async () => {
-    if (!user) return;
-    
     try {
       const excludeIds = votedIds.join(',');
-      const url = `/api/predictions/list?user_wallet_address=${user.wallet_address}&asset_type=${category}&limit=20${excludeIds ? `&exclude_ids=${excludeIds}` : ''}`;
+      // For guests, use a placeholder wallet address or skip the parameter
+      const walletParam = user?.wallet_address ? `user_wallet_address=${user.wallet_address}&` : '';
+      const url = `/api/predictions/list?${walletParam}asset_type=${category}&limit=20${excludeIds ? `&exclude_ids=${excludeIds}` : ''}`;
       
       const response = await fetch(url);
       const data = await response.json();
@@ -172,28 +178,26 @@ export default function PredictClient() {
 
   // Pre-fetch next prediction in background
   const preFetchNext = async () => {
-    if (!user || !prediction) return;
+    if (!prediction) return;
     
     // Exclude current prediction, skipped ones, and voted ones
     const excludeIds = [...skippedIds, ...votedIds, prediction.id];
     await fetchNextPrediction(excludeIds, true);
   };
 
-  // Load prediction on mount or category change
+  // Load prediction on mount or category change (works for guests too)
   useEffect(() => {
-    if (user) {
-      setIsLoading(true); // Show loading only on initial load or category change
-      setSkippedIds([]); // Reset skipped IDs when category changes
-      setVotedIds([]); // Reset voted IDs when category changes
-      
-      if (viewMode === "single") {
-        fetchNextPrediction().finally(() => setIsLoading(false));
-      } else {
-        fetchAllPredictions().finally(() => setIsLoading(false));
-      }
+    setIsLoading(true); // Show loading only on initial load or category change
+    setSkippedIds([]); // Reset skipped IDs when category changes
+    setVotedIds([]); // Reset voted IDs when category changes
+    
+    if (viewMode === "single") {
+      fetchNextPrediction().finally(() => setIsLoading(false));
+    } else {
+      fetchAllPredictions().finally(() => setIsLoading(false));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, category, viewMode]);
+  }, [user, category, viewMode, isConnected]);
 
   // Reset betting closed state and submitting when prediction changes
   useEffect(() => {
@@ -350,9 +354,22 @@ export default function PredictClient() {
     else if (deltaX < -100 && absDeltaX > absDeltaY) {
       handleStake("NO");
     }
-    // Swipe up for SKIP (threshold: 150px) - Only trigger if dominant vertical movement
-    else if (deltaY < -150 && absDeltaY > absDeltaX) {
+    // Note: Swipe up for skip removed on mobile - use double tap instead
+  };
+
+  // Double tap handler for skip (Instagram-style)
+  const handleDoubleTap = () => {
+    const now = Date.now();
+    const DOUBLE_TAP_DELAY = 300; // ms
+    
+    if (now - lastTapTime < DOUBLE_TAP_DELAY) {
+      // Double tap detected - trigger skip with animation
+      setShowSkipAnimation(true);
+      setTimeout(() => setShowSkipAnimation(false), 600);
       handleSkip();
+      setLastTapTime(0); // Reset to prevent triple tap
+    } else {
+      setLastTapTime(now);
     }
   };
 
@@ -367,15 +384,13 @@ export default function PredictClient() {
     const absDeltaX = Math.abs(deltaX);
     const absDeltaY = Math.abs(deltaY);
     
-    // Only apply transform for horizontal swipes or significant vertical swipes (up)
-    // Don't transform for small vertical movements (normal scrolling down)
-    if (absDeltaX > absDeltaY || deltaY < -50) {
+    // Only apply transform for horizontal swipes
+    if (absDeltaX > absDeltaY) {
       // Limit the swipe distance to prevent overflow
       const clampedX = Math.max(-200, Math.min(200, deltaX));
-      const clampedY = Math.min(0, Math.max(-150, deltaY)); // Only allow upward movement
       const rotation = clampedX / 25; // Slightly reduced rotation
       return {
-        transform: `translate(${clampedX}px, ${deltaY < -50 ? clampedY : 0}px) rotate(${rotation}deg)`,
+        transform: `translate(${clampedX}px, 0px) rotate(${rotation}deg)`,
         transition: 'none',
       };
     }
@@ -626,9 +641,8 @@ export default function PredictClient() {
   return (
     <AppLayout>
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 pb-32 overflow-x-hidden">
-        {/* Terminal Header with Back Button and Filters */}
-        {isConnected && user && (
-          <div className="bg-void-black border border-grail/30 rounded-lg overflow-hidden shadow-xl mb-4">
+        {/* Terminal Header with Back Button and Filters - Show for all users */}
+        <div className="bg-void-black border border-grail/30 rounded-lg overflow-hidden shadow-xl mb-4">
             {/* Terminal Title Bar with Filters */}
             <div className="bg-gradient-to-r from-void-graphite to-void-graphite/80 border-b border-grail/30 px-3 sm:px-4 py-2 flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
@@ -698,10 +712,9 @@ export default function PredictClient() {
               </button>
             </div>
           </div>
-        )}
 
         {/* Empty State - No Predictions Available */}
-        {isConnected && user && !isLoading && ((viewMode === "single" && !prediction) || (viewMode === "multi" && allPredictions.length === 0)) && (
+        {!isLoading && ((viewMode === "single" && !prediction) || (viewMode === "multi" && allPredictions.length === 0)) && (
           <div className="bg-void-black border border-grail/30 rounded-lg overflow-hidden shadow-xl">
             <div className="bg-gradient-to-r from-void-graphite to-void-graphite/80 border-b border-grail/30 px-4 py-2">
               <div className="flex items-center gap-2">
@@ -748,59 +761,16 @@ export default function PredictClient() {
           </div>
         )}
 
-        {/* Wallet Connection */}
-        {!isConnected && (
-          <div className="bg-void-black border border-grail/30 rounded-lg overflow-hidden shadow-xl">
-            <div className="bg-gradient-to-r from-void-graphite to-void-graphite/80 border-b border-grail/30 px-4 py-2 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-grail animate-pulse shadow-lg shadow-grail/50"></div>
-                <span className="text-gray-400 text-xs font-mono tracking-wider">WALLET_AUTH</span>
-              </div>
-              <div className="flex items-center gap-2 bg-grail/10 px-2.5 py-1 rounded-full border border-grail/30">
-                <div className="w-1.5 h-1.5 rounded-full bg-grail animate-pulse shadow-lg shadow-grail/50"></div>
-                <span className="text-grail-light text-xs font-mono font-bold">REQUIRED</span>
-              </div>
-            </div>
-            
-            <div className="p-8 md:p-12">
-              <div className="max-w-md mx-auto bg-gradient-to-br from-grail/5 to-grail/10 border border-grail/30 rounded-lg p-6 md:p-8">
-                <div className="text-center mb-6">
-                  <div className="w-16 h-16 mx-auto mb-4 rounded-lg bg-grail/10 border border-grail/40 flex items-center justify-center shadow-lg shadow-grail/20">
-                    <span className="text-3xl">🔐</span>
-                  </div>
-                  <h2 className="text-2xl font-black mb-2 text-white font-mono">CONNECT_WALLET</h2>
-                  <p className="text-gray-400 text-sm font-mono leading-relaxed">
-                    Initialize secure connection to access prediction markets
-                  </p>
-                </div>
-                
-                <WalletConnectButton />
-                
-                <div className="mt-6 pt-6 border-t border-grail/20 space-y-2">
-                  <div className="flex items-center gap-2 text-xs font-mono text-gray-400">
-                    <div className="w-1 h-1 rounded-full bg-profit"></div>
-                    <span>Predict and earn rewards</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs font-mono text-gray-400">
-                    <div className="w-1 h-1 rounded-full bg-auric"></div>
-                    <span>Instant resolution</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Loading State */}
-        {isConnected && isLoading && (
+        {isLoading && (
           <div className="grail-card rounded-2xl p-12 text-center">
             <div className="inline-block animate-spin rounded-full h-16 w-16 border-4 border-grail border-t-transparent mb-4"></div>
             <p className="text-grail-pale text-lg">Loading predictions...</p>
           </div>
         )}
 
-        {/* Multi-View Mode - Grid of minimalistic cards */}
-        {isConnected && user && viewMode === "multi" && allPredictions.length > 0 && !isLoading && (
+        {/* Multi-View Mode - Grid of minimalistic cards (works for guests too) */}
+        {viewMode === "multi" && allPredictions.length > 0 && !isLoading && (
           <div className="fade-in">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {allPredictions.map((pred) => {
@@ -887,20 +857,34 @@ export default function PredictClient() {
                     
                     {/* Action Buttons */}
                     <div className="p-2 bg-void-graphite/30 border-t border-grail/20">
-                      <div className="grid grid-cols-2 gap-2">
-                        <button
-                          onClick={() => handleMultiViewStake(pred, "NO")}
-                          className="bg-loss/20 hover:bg-loss/30 border border-loss/30 text-loss font-bold py-2 rounded-md text-xs font-mono transition-all active:scale-95"
-                        >
-                          NO
-                        </button>
-                        <button
-                          onClick={() => handleMultiViewStake(pred, "YES")}
-                          className="bg-profit/20 hover:bg-profit/30 border border-profit/30 text-profit font-bold py-2 rounded-md text-xs font-mono transition-all active:scale-95"
-                        >
-                          YES
-                        </button>
-                      </div>
+                      {isConnected && user ? (
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            onClick={() => handleMultiViewStake(pred, "NO")}
+                            className="bg-loss/20 hover:bg-loss/30 border border-loss/30 text-loss font-bold py-2 rounded-md text-xs font-mono transition-all active:scale-95"
+                          >
+                            NO
+                          </button>
+                          <button
+                            onClick={() => handleMultiViewStake(pred, "YES")}
+                            className="bg-profit/20 hover:bg-profit/30 border border-profit/30 text-profit font-bold py-2 rounded-md text-xs font-mono transition-all active:scale-95"
+                          >
+                            YES
+                          </button>
+                        </div>
+                      ) : (
+                        <ConnectButton.Custom>
+                          {({ openConnectModal, mounted }) => (
+                            <button
+                              onClick={openConnectModal}
+                              disabled={!mounted}
+                              className="w-full bg-grail/20 hover:bg-grail/30 border border-grail/30 text-grail-light font-bold py-2 rounded-md text-xs font-mono transition-all active:scale-95"
+                            >
+                              🔐 Connect to Vote
+                            </button>
+                          )}
+                        </ConnectButton.Custom>
+                      )}
                     </div>
                   </div>
                 );
@@ -994,33 +978,47 @@ export default function PredictClient() {
                 </div>
                 
                 {/* Action Buttons in Modal */}
-                <div className="grid grid-cols-2 gap-3 pt-2">
-                  <button
-                    onClick={() => {
-                      handleMultiViewStake(infoModalPrediction, "NO");
-                      setInfoModalPrediction(null);
-                    }}
-                    className="bg-loss/20 hover:bg-loss/30 border border-loss/30 text-loss font-bold py-3 rounded-lg text-sm font-mono transition-all active:scale-95"
-                  >
-                    NO
-                  </button>
-                  <button
-                    onClick={() => {
-                      handleMultiViewStake(infoModalPrediction, "YES");
-                      setInfoModalPrediction(null);
-                    }}
-                    className="bg-profit/20 hover:bg-profit/30 border border-profit/30 text-profit font-bold py-3 rounded-lg text-sm font-mono transition-all active:scale-95"
-                  >
-                    YES
-                  </button>
-                </div>
+                {isConnected && user ? (
+                  <div className="grid grid-cols-2 gap-3 pt-2">
+                    <button
+                      onClick={() => {
+                        handleMultiViewStake(infoModalPrediction, "NO");
+                        setInfoModalPrediction(null);
+                      }}
+                      className="bg-loss/20 hover:bg-loss/30 border border-loss/30 text-loss font-bold py-3 rounded-lg text-sm font-mono transition-all active:scale-95"
+                    >
+                      NO
+                    </button>
+                    <button
+                      onClick={() => {
+                        handleMultiViewStake(infoModalPrediction, "YES");
+                        setInfoModalPrediction(null);
+                      }}
+                      className="bg-profit/20 hover:bg-profit/30 border border-profit/30 text-profit font-bold py-3 rounded-lg text-sm font-mono transition-all active:scale-95"
+                    >
+                      YES
+                    </button>
+                  </div>
+                ) : (
+                  <ConnectButton.Custom>
+                    {({ openConnectModal, mounted }) => (
+                      <button
+                        onClick={openConnectModal}
+                        disabled={!mounted}
+                        className="w-full bg-grail/20 hover:bg-grail/30 border border-grail/30 text-grail-light font-bold py-3 rounded-lg text-sm font-mono transition-all active:scale-95"
+                      >
+                        🔐 Connect Wallet to Vote
+                      </button>
+                    )}
+                  </ConnectButton.Custom>
+                )}
               </div>
             </div>
           </div>
         )}
 
-        {/* Single View - Prediction Card - Terminal Style */}
-        {isConnected && user && viewMode === "single" && prediction && !isLoading && (
+        {/* Single View - Prediction Card - Terminal Style (works for guests too) */}
+        {viewMode === "single" && prediction && !isLoading && (
           <div className="fade-in">
             {/* Desktop: Multi-grid view, Mobile/Tablet: Single card */}
             <div className="lg:grid lg:grid-cols-2 lg:gap-4">
@@ -1058,30 +1056,25 @@ export default function PredictClient() {
                         </div>
                       </div>
                     )}
-                    
-                    {/* SKIP Overlay (Swipe Up) */}
-                    {(() => {
-                      const deltaY = touchCurrent.y - touchStart.y;
-                      const deltaX = touchCurrent.x - touchStart.x;
-                      const absDeltaY = Math.abs(deltaY);
-                      const absDeltaX = Math.abs(deltaX);
-                      
-                      return deltaY < -50 && absDeltaY > absDeltaX && (
-                        <div 
-                          className="fixed inset-0 bg-gray-500/40 backdrop-blur-sm z-50 flex items-center justify-center lg:hidden pointer-events-none"
-                          style={{ opacity: getOverlayOpacity() }}
-                        >
-                          <div className="text-white text-6xl font-black font-mono">
-                            SKIP
-                          </div>
-                        </div>
-                      );
-                    })()}
                   </>
                 )}
                 
+                {/* Double Tap Skip Animation Overlay */}
+                {showSkipAnimation && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none lg:hidden">
+                    <div className="animate-ping">
+                      <div className="w-20 h-20 rounded-full bg-gray-500/30 flex items-center justify-center">
+                        <span className="text-white text-2xl font-mono font-bold">SKIP</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Main Prediction Card */}
-                <div className="bg-void-black border border-grail/30 rounded-lg overflow-hidden shadow-xl mb-4 lg:mb-0">
+                <div 
+                  className="bg-void-black border border-grail/30 rounded-lg overflow-hidden shadow-xl mb-4 lg:mb-0"
+                  onClick={handleDoubleTap}
+                >
                 {/* Terminal Title Bar */}
                 <div className="bg-gradient-to-r from-void-graphite to-void-graphite/80 border-b border-grail/30 px-4 py-2 flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -1162,31 +1155,65 @@ export default function PredictClient() {
                   </div>
                 )}
 
-                {/* User Balance */}
-                <div className="p-4 bg-void-graphite/50">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-mono text-gray-500 uppercase">Your_Balance</span>
-                    <div className="flex items-center gap-2">
-                      {isBalanceLoading ? (
-                        <>
-                          <div className="inline-block animate-spin rounded-full h-4 w-4 border-2 border-auric border-t-transparent"></div>
-                          <span className="text-auric font-bold text-lg font-mono tabular-nums opacity-50">
+                {/* User Balance - Only show for connected users */}
+                {isConnected && user ? (
+                  <div className="p-4 bg-void-graphite/50">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-mono text-gray-500 uppercase">Your_Balance</span>
+                      <div className="flex items-center gap-2">
+                        {isBalanceLoading ? (
+                          <>
+                            <div className="inline-block animate-spin rounded-full h-4 w-4 border-2 border-auric border-t-transparent"></div>
+                            <span className="text-auric font-bold text-lg font-mono tabular-nums opacity-50">
+                              {(localBalance ?? user.real_credits_balance).toFixed(3)}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="text-auric font-bold text-lg font-mono tabular-nums">
                             {(localBalance ?? user.real_credits_balance).toFixed(3)}
                           </span>
-                        </>
-                      ) : (
-                        <span className="text-auric font-bold text-lg font-mono tabular-nums">
-                          {(localBalance ?? user.real_credits_balance).toFixed(3)}
-                        </span>
-                      )}
-                      <span className="text-xs font-mono text-gray-500">USDC</span>
+                        )}
+                        <span className="text-xs font-mono text-gray-500">USDC</span>
+                      </div>
                     </div>
+                  </div>
+                ) : (
+                  <div className="p-4 bg-grail/5 border-t border-grail/20">
+                    <div className="flex items-center justify-center gap-2 text-grail-light text-sm font-mono">
+                      <span>🔐</span>
+                      <span>Connect wallet to see balance</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Mobile Sentiment Bar - Only visible on mobile */}
+                <div className="md:hidden px-4 py-3 border-t border-grail/20 bg-void-graphite/30">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-1 h-1 rounded-full bg-loss"></div>
+                      <span className="text-xs font-mono text-gray-500 uppercase">Sentiment</span>
+                    </div>
+                    <span className="text-xs text-gray-500 font-mono">{totalVotes} votes</span>
+                  </div>
+                  <div className="relative h-1.5 bg-void-black rounded-full overflow-hidden border border-grail/20">
+                    <div
+                      className="absolute left-0 top-0 h-full bg-loss transition-all duration-500"
+                      style={{ width: `${noPercent}%` }}
+                    />
+                    <div
+                      className="absolute right-0 top-0 h-full bg-profit transition-all duration-500"
+                      style={{ width: `${yesPercent}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-[10px] font-mono font-bold mt-1">
+                    <span className="loss-text">{noPercent}%</span>
+                    <span className="profit-text">{yesPercent}%</span>
                   </div>
                 </div>
               </div>
 
-              {/* Action Panel */}
-              <div className="bg-void-black border border-grail/30 rounded-lg overflow-hidden shadow-xl">
+              {/* Action Panel - Hidden on mobile, shown on desktop */}
+              <div className="hidden md:block bg-void-black border border-grail/30 rounded-lg overflow-hidden shadow-xl">
                 {/* Terminal Title Bar */}
                 <div className="bg-gradient-to-r from-void-graphite to-void-graphite/80 border-b border-grail/30 px-4 py-2 flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -1226,43 +1253,68 @@ export default function PredictClient() {
 
                 {/* Action Buttons */}
                 <div className="p-4">
-                  <div className="grid grid-cols-3 gap-3">
-                    <button
-                      onClick={() => handleStake("NO")}
-                      disabled={bettingClosed || isSubmitting}
-                      className="group relative bg-gradient-to-br from-loss to-loss/80 md:hover:from-loss/90 md:hover:to-loss/70 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-6 rounded-lg transition-all md:hover:scale-[1.02] active:scale-95 border border-loss/50 shadow-lg shadow-loss/20 font-mono overflow-hidden"
-                    >
-                      <div className="absolute inset-0 bg-loss/20 opacity-0 md:group-hover:opacity-100 transition-opacity"></div>
-                      <div className="relative flex flex-col items-center justify-center gap-1">
-                        <div className="w-2 h-2 rounded-full bg-white/80 md:group-hover:bg-white transition-colors"></div>
-                        <div className="text-base tracking-wider">{isSubmitting && selectedPosition === "NO" ? "..." : "NO"}</div>
+                  {isConnected && user ? (
+                    <div className="grid grid-cols-3 gap-3">
+                      <button
+                        onClick={() => handleStake("NO")}
+                        disabled={bettingClosed || isSubmitting}
+                        className="group relative bg-gradient-to-br from-loss to-loss/80 md:hover:from-loss/90 md:hover:to-loss/70 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-6 rounded-lg transition-all md:hover:scale-[1.02] active:scale-95 border border-loss/50 shadow-lg shadow-loss/20 font-mono overflow-hidden"
+                      >
+                        <div className="absolute inset-0 bg-loss/20 opacity-0 md:group-hover:opacity-100 transition-opacity"></div>
+                        <div className="relative flex flex-col items-center justify-center gap-1">
+                          <div className="w-2 h-2 rounded-full bg-white/80 md:group-hover:bg-white transition-colors"></div>
+                          <div className="text-base tracking-wider">{isSubmitting && selectedPosition === "NO" ? "..." : "NO"}</div>
+                        </div>
+                      </button>
+                      
+                      <button
+                        onClick={handleSkip}
+                        disabled={isSubmitting}
+                        className="group relative bg-void-graphite md:hover:bg-void-graphite/60 disabled:opacity-50 disabled:cursor-not-allowed text-gray-400 md:hover:text-white font-bold py-6 rounded-lg transition-all border border-grail/20 md:hover:border-grail/40 font-mono overflow-hidden active:scale-95"
+                      >
+                        <div className="absolute inset-0 bg-grail/10 opacity-0 md:group-hover:opacity-100 transition-opacity"></div>
+                        <div className="relative flex flex-col items-center justify-center gap-1">
+                          <div className="w-2 h-2 rounded-full bg-gray-500 md:group-hover:bg-gray-300 transition-colors"></div>
+                          <div className="text-base tracking-wider">SKIP</div>
+                        </div>
+                      </button>
+                      
+                      <button
+                        onClick={() => handleStake("YES")}
+                        disabled={bettingClosed || isSubmitting}
+                        className="group relative bg-gradient-to-br from-profit to-profit/80 md:hover:from-profit/90 md:hover:to-profit/70 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-6 rounded-lg transition-all md:hover:scale-[1.02] active:scale-95 border border-profit/50 shadow-lg shadow-profit/20 font-mono overflow-hidden"
+                      >
+                        <div className="absolute inset-0 bg-profit/20 opacity-0 md:group-hover:opacity-100 transition-opacity"></div>
+                        <div className="relative flex flex-col items-center justify-center gap-1">
+                          <div className="w-2 h-2 rounded-full bg-white/80 md:group-hover:bg-white transition-colors"></div>
+                          <div className="text-base tracking-wider">{isSubmitting && selectedPosition === "YES" ? "..." : "YES"}</div>
+                        </div>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {/* Disabled YES/NO buttons for guests */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-loss/10 border border-loss/20 text-loss/50 font-bold py-4 rounded-lg text-center font-mono cursor-not-allowed">
+                          NO
+                        </div>
+                        <div className="bg-profit/10 border border-profit/20 text-profit/50 font-bold py-4 rounded-lg text-center font-mono cursor-not-allowed">
+                          YES
+                        </div>
                       </div>
-                    </button>
+                      {/* Skip button works for guests */}
+                      <button
+                        onClick={handleSkip}
+                        className="w-full group relative bg-void-graphite md:hover:bg-void-graphite/60 text-gray-400 md:hover:text-white font-bold py-3 rounded-lg transition-all border border-grail/20 md:hover:border-grail/40 font-mono overflow-hidden active:scale-95"
+                      >
+                        <div className="relative flex items-center justify-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-gray-500 md:group-hover:bg-gray-300 transition-colors"></div>
+                          <span>SKIP</span>
+                        </div>
+                      </button>
                     
-                    <button
-                      onClick={handleSkip}
-                      disabled={isSubmitting}
-                      className="group relative bg-void-graphite md:hover:bg-void-graphite/60 disabled:opacity-50 disabled:cursor-not-allowed text-gray-400 md:hover:text-white font-bold py-6 rounded-lg transition-all border border-grail/20 md:hover:border-grail/40 font-mono overflow-hidden active:scale-95"
-                    >
-                      <div className="absolute inset-0 bg-grail/10 opacity-0 md:group-hover:opacity-100 transition-opacity"></div>
-                      <div className="relative flex flex-col items-center justify-center gap-1">
-                        <div className="w-2 h-2 rounded-full bg-gray-500 md:group-hover:bg-gray-300 transition-colors"></div>
-                        <div className="text-base tracking-wider">SKIP</div>
-                      </div>
-                    </button>
-                    
-                    <button
-                      onClick={() => handleStake("YES")}
-                      disabled={bettingClosed || isSubmitting}
-                      className="group relative bg-gradient-to-br from-profit to-profit/80 md:hover:from-profit/90 md:hover:to-profit/70 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-6 rounded-lg transition-all md:hover:scale-[1.02] active:scale-95 border border-profit/50 shadow-lg shadow-profit/20 font-mono overflow-hidden"
-                    >
-                      <div className="absolute inset-0 bg-profit/20 opacity-0 md:group-hover:opacity-100 transition-opacity"></div>
-                      <div className="relative flex flex-col items-center justify-center gap-1">
-                        <div className="w-2 h-2 rounded-full bg-white/80 md:group-hover:bg-white transition-colors"></div>
-                        <div className="text-base tracking-wider">{isSubmitting && selectedPosition === "YES" ? "..." : "YES"}</div>
-                      </div>
-                    </button>
-                  </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Instructions */}
@@ -1289,12 +1341,101 @@ export default function PredictClient() {
         )}
       </div>
 
-      {/* Fixed Bottom Bar - Stake Amount Slider */}
-      {isConnected && user && ((viewMode === "single" && prediction) || (viewMode === "multi" && allPredictions.length > 0)) && (
+      {/* Mobile Floating Action Buttons - Rectangular YES / SKIP / NO row above slider */}
+      {viewMode === "single" && prediction && (
+        <div
+          className={`md:hidden fixed left-0 right-0 z-30 px-4 ${
+            isConnected && user
+              ? "bottom-[72px] sm:bottom-[88px]" // a bit more gap above slider
+              : "bottom-[80px] sm:bottom-[96px]" // guest mode slightly higher above connect CTA
+          }`}
+        >
+          <div className="max-w-sm mx-auto">
+            {isConnected && user ? (
+              // Connected user - Active YES/NO, active SKIP
+              <div className="flex items-center justify-between gap-3">
+                {/* NO Button */}
+                <button
+                  onClick={() => handleStake("NO")}
+                  disabled={bettingClosed || isSubmitting}
+                  className="flex-1 h-10 rounded-lg bg-void-black disabled:opacity-40 disabled:cursor-not-allowed text-loss font-mono font-bold text-xs tracking-wider transition-all active:scale-95 border border-loss/40 flex items-center justify-center"
+                >
+                  <span>{isSubmitting && selectedPosition === "NO" ? "..." : "NO"}</span>
+                </button>
+
+                {/* SKIP Button */}
+                <button
+                  onClick={handleSkip}
+                  disabled={isSubmitting}
+                  className="h-10 px-4 rounded-lg bg-void-graphite disabled:opacity-40 disabled:cursor-not-allowed text-gray-300 font-mono font-bold text-xs tracking-wider transition-all active:scale-95 border border-grail/30 flex items-center justify-center"
+                >
+                  <span>SKIP</span>
+                </button>
+
+                {/* YES Button */}
+                <button
+                  onClick={() => handleStake("YES")}
+                  disabled={bettingClosed || isSubmitting}
+                  className="flex-1 h-10 rounded-lg bg-void-black disabled:opacity-40 disabled:cursor-not-allowed text-profit font-mono font-bold text-xs tracking-wider transition-all active:scale-95 border border-profit/40 flex items-center justify-center"
+                >
+                  <span>{isSubmitting && selectedPosition === "YES" ? "..." : "YES"}</span>
+                </button>
+              </div>
+            ) : (
+              // Guest - Disabled YES/NO, active SKIP
+              <div className="flex items-center justify-between gap-3">
+                {/* NO Button - Disabled */}
+                <div className="flex-1 h-10 rounded-lg bg-void-black/60 border border-loss/20 text-loss/30 flex items-center justify-center cursor-not-allowed font-mono font-bold text-xs tracking-wider">
+                  <span>NO</span>
+                </div>
+
+                {/* SKIP Button - Active for guests */}
+                <button
+                  onClick={handleSkip}
+                  className="h-10 px-4 rounded-lg bg-void-graphite text-gray-300 font-mono font-bold text-xs tracking-wider transition-all active:scale-95 border border-grail/30 flex items-center justify-center"
+                >
+                  <span>SKIP</span>
+                </button>
+
+                {/* YES Button - Disabled */}
+                <div className="flex-1 h-10 rounded-lg bg-void-black/60 border border-profit/20 text-profit/30 flex items-center justify-center cursor-not-allowed font-mono font-bold text-xs tracking-wider">
+                  <span>YES</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Fixed Bottom Bar - Stake Amount Slider (for connected users) or Connect CTA (for guests) */}
+      {((viewMode === "single" && prediction) || (viewMode === "multi" && allPredictions.length > 0)) && (
         <div className="fixed bottom-0 left-0 right-0 bg-void-black/95 backdrop-blur-lg border-t border-grail/30 shadow-2xl z-40">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3 sm:py-4">
-            {(user?.real_credits_balance || 0) < 1 ? (
-              // Zero Balance Message
+            {!isConnected ? (
+              // Guest - Show connect wallet CTA
+              <div className="flex items-center justify-center">
+                <ConnectButton.Custom>
+                  {({ openConnectModal, mounted }) => (
+                    <button
+                      onClick={openConnectModal}
+                      disabled={!mounted}
+                      className="flex items-center gap-2 bg-gradient-to-r from-grail to-grail-light hover:from-grail-light hover:to-grail text-white font-bold py-3 px-6 rounded-lg font-mono transition-all active:scale-95 shadow-lg shadow-grail/20"
+                    >
+                      <span>Connect Wallet to Predict</span>
+                    </button>
+                  )}
+                </ConnectButton.Custom>
+              </div>
+            ) : userLoading || !user ? (
+              // Connected but user/balance still loading
+              <div className="flex items-center justify-center gap-3 py-2">
+                <div className="flex items-center gap-2 bg-grail/10 px-4 py-2 rounded-lg border border-grail/30">
+                  <div className="inline-block animate-spin rounded-full h-4 w-4 border-2 border-grail border-t-transparent"></div>
+                  <span className="text-grail-light text-sm font-mono font-bold">Loading Balance...</span>
+                </div>
+              </div>
+            ) : (user.real_credits_balance || 0) < 1 ? (
+              // Connected and loaded, but zero/low balance
               <div className="flex items-center justify-center gap-3 py-2">
                 <div className="flex items-center gap-2 bg-loss/10 px-4 py-2 rounded-lg border border-loss/30">
                   <span className="text-loss text-sm font-mono font-bold">Insufficient Balance</span>

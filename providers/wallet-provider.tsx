@@ -53,7 +53,7 @@ export default function WalletProvider({ children }: { children: ReactNode }) {
       <div className="min-h-screen bg-void-black flex items-center justify-center">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-grail border-t-transparent mb-4"></div>
-          <p className="text-grail-pale font-mono text-sm">Initializing wallet...</p>
+          <p className="text-grail-pale font-mono text-sm">Initializing System...</p>
         </div>
       </div>
     );
