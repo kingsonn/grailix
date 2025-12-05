@@ -123,20 +123,29 @@ export async function runAgent1() {
 
     // Check for duplicates before inserting
     try {
+      // Normalize raw_text for comparison (trim whitespace, normalize line breaks)
+      const normalizedRawText = raw_text.trim().replace(/\r\n/g, '\n').replace(/\s+/g, ' ');
+      
       // Check if this exact raw_text + ticker combination already exists
+      // Use ilike for case-insensitive matching on ticker
       const { data: existingRows, error: checkError } = await supabase
         .from("ai_raw_inputs")
-        .select("id")
-        .eq("raw_text", raw_text)
-        .eq("ticker", ticker)
-        .limit(1);
+        .select("id, raw_text")
+        .ilike("ticker", ticker)
+        .limit(50); // Get more rows to check for text similarity
 
       if (checkError) {
         console.error(`Error checking for duplicates for sheet row ${i + 1}:`, checkError);
         continue;
       }
 
-      if (existingRows && existingRows.length > 0) {
+      // Check for exact or near-exact text match
+      const isDuplicate = existingRows?.some(row => {
+        const existingNormalized = (row.raw_text || '').trim().replace(/\r\n/g, '\n').replace(/\s+/g, ' ');
+        return existingNormalized === normalizedRawText;
+      });
+
+      if (isDuplicate) {
         console.log(`Skipping sheet row ${i + 1} — duplicate already exists in ai_raw_inputs (ticker=${ticker})`);
         
         // Still mark as processed in sheet to avoid re-checking
