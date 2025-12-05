@@ -20,6 +20,7 @@ export default function WalletClient() {
   const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error" | "info"; text: string } | null>(null);
   const [activeTab, setActiveTab] = useState<"deposit" | "withdraw">("deposit");
   const [currentDepositId, setCurrentDepositId] = useState<string>("");
+  const [tokenCopied, setTokenCopied] = useState(false);
 
   // Read MockUSDC balance from wallet
   const { data: walletBalance, refetch: refetchBalance } = useReadContract({
@@ -400,7 +401,38 @@ export default function WalletClient() {
                   </div>
                 </div>
                 <div className="p-6 sm:p-8">
-                <h2 className="text-xl sm:text-2xl font-bold mb-6 font-mono">WITHDRAW_MOCKUSDC</h2>
+                <h2 className="text-xl sm:text-2xl font-bold mb-2 font-mono">WITHDRAW_MOCKUSDC</h2>
+
+                {/* Minimal token import hint */}
+                <div className="mb-6 text-[11px] text-gray-500 font-mono space-y-1">
+                  <p className="flex flex-wrap gap-2">
+                    <span className="text-neon font-bold">NOTE:</span>
+                    <span>
+                      Import <span className="text-grail-light font-bold">MockUSDC</span> as a custom token in your wallet
+                      on <span className="text-gray-400">BNB Testnet</span> to view the balance.
+                    </span>
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(TOKEN_ADDRESS || "");
+                          setTokenCopied(true);
+                          setTimeout(() => setTokenCopied(false), 1500);
+                        } catch {
+                          setTokenCopied(false);
+                        }
+                      }}
+                      className="px-2 py-1 rounded border border-grail/40 bg-void-graphite/70 hover:bg-grail/20 text-[10px] text-gray-300 transition-colors"
+                    >
+                      COPY ADDRESS
+                    </button>
+                    {tokenCopied && (
+                      <span className="text-[10px] text-neon">COPIED</span>
+                    )}
+                  </div>
+                </div>
                 
                 <div className="mb-6">
                   <div className="flex items-center gap-2 mb-2">
