@@ -287,6 +287,21 @@ async function placeStake(
       return { success: false, error: "Already staked" };
     }
 
+    // Check if bot has enough balance
+    const { data: user, error: userError } = await supabase
+      .from("users")
+      .select("real_credits_balance")
+      .eq("id", userId)
+      .single();
+
+    if (userError || !user) {
+      return { success: false, error: "Failed to fetch user balance" };
+    }
+
+    if (user.real_credits_balance < stakeAmount) {
+      return { success: false, error: `Insufficient balance (${user.real_credits_balance} < ${stakeAmount})` };
+    }
+
     const { error } = await supabase
       .from("user_prediction_stakes")
       .insert({
@@ -302,6 +317,27 @@ async function placeStake(
       return { success: false, error: error.message };
     }
 
+    // Deduct stake from user's balance
+    const { error: deductError } = await supabase
+      .from("users")
+      .update({
+        real_credits_balance: user.real_credits_balance - stakeAmount,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", userId);
+
+    if (deductError) {
+      console.error(`⚠️ Failed to deduct stake from user ${userId}: ${deductError.message}`);
+    }
+
+    // Log the stake transaction
+    await supabase.from("transactions").insert({
+      user_id: userId,
+      type: "stake",
+      amount: -stakeAmount,
+      status: "confirmed",
+    });
+
     // Update prediction_pools and predictions tables
     await Promise.all([
       updatePredictionPool(predictionId, position, stakeAmount),
@@ -310,9 +346,9 @@ async function placeStake(
 
     return { success: true };
   } catch (err) {
-    return { 
-      success: false, 
-      error: err instanceof Error ? err.message : "Unknown error" 
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Unknown error"
     };
   }
 }
