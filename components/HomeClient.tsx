@@ -151,7 +151,7 @@ export default function HomeClient() {
                   </div>
                   <h3 className="font-bold font-mono text-white">PREDICT</h3>
                 </div>
-                <p className="text-gray-400 text-sm font-mono">Forecast stock and crypto price movements with AI-curated prediction markets.</p>
+                <p className="text-gray-400 text-sm font-mono">Forecast stock and crypto price movements with AI-curated prediction markets</p>
               </div>
               
               <div className="bg-void-black border border-grail/30 rounded-lg p-5">
