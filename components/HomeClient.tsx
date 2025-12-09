@@ -189,9 +189,13 @@ export default function HomeClient() {
                     <span className="text-grail-pale font-mono">BROWSE_ONLY</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 text-gray-600 bg-void-graphite px-3 py-1.5 rounded border border-grail/20">
-                  <div className="w-1 h-1 rounded-full bg-gray-600"></div>
-                  <span className="tracking-wider">GRAILIX_v1.0</span>
+                <div className="flex justify-stretch sm:justify-end">
+                  <Link 
+                    href="/whitepaper"
+                    className="inline-flex justify-center items-center w-full sm:w-auto gap-1 text-[11px] font-mono tracking-wider text-grail-pale hover:text-grail-light bg-void-graphite/80 px-3 py-1 rounded-full border border-grail/30 hover:border-grail/60 transition-colors"
+                  >
+                    <span>WHITEPAPER</span>
+                  </Link>
                 </div>
               </div>
             </div>
@@ -407,9 +411,19 @@ export default function HomeClient() {
                     <span className="text-grail-pale font-mono">{user.wallet_address.slice(0, 6)}...{user.wallet_address.slice(-4)}</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 text-gray-600 bg-void-graphite px-3 py-1.5 rounded border border-grail/20">
-                  <div className="w-1 h-1 rounded-full bg-gray-600"></div>
-                  <span className="tracking-wider">GRAILIX_v1.0</span>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-xs font-mono text-gray-600 bg-void-graphite px-3 py-1.5 rounded border border-grail/20">
+                  <div className="flex items-center gap-2">
+                    <div className="w-1 h-1 rounded-full bg-gray-600"></div>
+                    <span className="tracking-wider">GRAILIX_v1.0</span>
+                  </div>
+                  <div className="flex w-full sm:w-auto">
+                    <Link
+                      href="/whitepaper"
+                      className="inline-flex justify-center items-center w-full sm:w-auto gap-1 text-[11px] tracking-wider text-grail-pale hover:text-grail-light bg-void-black/60 px-3 py-1 rounded-full border border-grail/30 hover:border-grail/60 transition-colors"
+                    >
+                      <span>WHITEPAPER</span>
+                    </Link>
+                  </div>
                 </div>
               </div>
             </div>
