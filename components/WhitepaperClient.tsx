@@ -334,7 +334,7 @@ export default function WhitepaperClient() {
               </ul>
               <div className="bg-neon/5 border border-neon/30 rounded p-3">
                 <p className="text-sm text-gray-300">
-                  This removes "consideration" → <span className="text-neon font-bold">legal sweepstakes</span> → compliant.
+                  This removes &quot;consideration&quot; → <span className="text-neon font-bold">legal sweepstakes</span> → compliant.
                 </p>
               </div>
             </div>
