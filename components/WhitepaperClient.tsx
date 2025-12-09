@@ -161,9 +161,9 @@ export default function WhitepaperClient() {
             </p>
             <div className="grid gap-3 mb-6">
               {[
-                '&quot;Will TSLA open higher tomorrow?&quot;',
-                '&quot;Will BTC be higher in 3 hours?&quot;',
-                '&quot;Will NVDA close red today?&quot;',
+                'Will TSLA open higher tomorrow?',
+                'Will BTC be higher in 3 hours?',
+                'Will NVDA close red today?',
               ].map((item, i) => (
                 <div key={i} className="bg-void-graphite border border-grail/30 rounded-lg px-4 py-3">
                   <span className="text-grail-light font-mono">{item}</span>
