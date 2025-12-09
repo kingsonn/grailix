@@ -161,9 +161,9 @@ export default function WhitepaperClient() {
             </p>
             <div className="grid gap-3 mb-6">
               {[
-                '"Will TSLA open higher tomorrow?"',
-                '"Will BTC be higher in 3 hours?"',
-                '"Will NVDA close red today?"',
+                '&quot;Will TSLA open higher tomorrow?&quot;',
+                '&quot;Will BTC be higher in 3 hours?&quot;',
+                '&quot;Will NVDA close red today?&quot;',
               ].map((item, i) => (
                 <div key={i} className="bg-void-graphite border border-grail/30 rounded-lg px-4 py-3">
                   <span className="text-grail-light font-mono">{item}</span>
@@ -555,7 +555,7 @@ export default function WhitepaperClient() {
           {/* Section 10: Conclusion */}
           <Section id="section-10" number="10" title="Conclusion" icon="🏁">
             <p className="text-gray-300 leading-relaxed mb-6">
-              Grailix isn't another prediction market — it is:
+              Grailix isn&apos;t another prediction market — it is:
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
               {[
