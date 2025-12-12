@@ -782,7 +782,7 @@ export default function PredictClient() {
                 return (
                   <div
                     key={pred.id}
-                    className="bg-void-black border border-grail/30 rounded-lg overflow-hidden shadow-lg relative"
+                    className="bg-gradient-to-br from-void-graphite via-void-black to-void-graphite border border-grail/50 rounded-xl overflow-hidden shadow-[0_0_20px_rgba(125,44,255,0.15)] hover:shadow-[0_0_30px_rgba(125,44,255,0.3)] hover:border-grail/70 transition-all duration-300 relative group"
                     style={{
                       transform: isSwipingThis ? `translateX(${cardSwipeX}px) rotate(${cardSwipeX / 30}deg)` : 'none',
                       transition: isSwipingThis ? 'none' : 'transform 0.3s ease-out',
@@ -805,15 +805,15 @@ export default function PredictClient() {
                     )}
                     
                     {/* Card Header */}
-                    <div className="p-3 border-b border-grail/20">
+                    <div className="p-3 border-b border-grail/30 bg-gradient-to-r from-grail/10 via-transparent to-neon/10">
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex items-center gap-2 flex-shrink-0">
-                          <div className="w-8 h-8 rounded-md bg-gradient-to-br from-grail/20 to-grail/5 border border-grail/30 flex items-center justify-center text-sm">
+                          <div className="w-8 h-8 rounded-md bg-gradient-to-br from-grail/30 to-neon/20 border border-grail/50 flex items-center justify-center text-sm shadow-[0_0_10px_rgba(125,44,255,0.3)]">
                             {pred.asset_type === "crypto" ? "₿" : "📈"}
                           </div>
                           <div>
-                            <h4 className="text-sm font-bold font-mono text-white">{pred.asset}</h4>
-                            <p className="text-[10px] text-gray-500 uppercase font-mono">{pred.asset_type}</p>
+                            <h4 className="text-sm font-bold font-mono text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]">{pred.asset}</h4>
+                            <p className="text-[10px] text-grail-light uppercase font-mono">{pred.asset_type}</p>
                           </div>
                         </div>
                         {/* Info Button */}
@@ -832,15 +832,15 @@ export default function PredictClient() {
                     </div>
                     
                     {/* Question */}
-                    <div className="p-3">
-                      <p className="text-xs text-gray-300 font-mono leading-relaxed line-clamp-3">
+                    <div className="p-3 bg-gradient-to-b from-transparent to-grail/5">
+                      <p className="text-xs text-gray-100 font-mono leading-relaxed line-clamp-3">
                         {pred.prediction_text}
                       </p>
                     </div>
                     
                     {/* Sentiment Bar (no labels) */}
                     <div className="px-3 pb-2">
-                      <div className="relative h-1.5 bg-void-graphite rounded-full overflow-hidden">
+                      <div className="relative h-1.5 bg-void-black rounded-full overflow-hidden border border-grail/20 shadow-inner">
                         <div
                           className="absolute left-0 top-0 h-full bg-loss transition-all duration-300"
                           style={{ width: `${predNoPercent}%` }}
@@ -856,18 +856,18 @@ export default function PredictClient() {
                     </div>
                     
                     {/* Action Buttons */}
-                    <div className="p-2 bg-void-graphite/30 border-t border-grail/20">
+                    <div className="p-2 bg-gradient-to-t from-void-black to-transparent border-t border-grail/30">
                       {isConnected && user ? (
                         <div className="grid grid-cols-2 gap-2">
                           <button
                             onClick={() => handleMultiViewStake(pred, "NO")}
-                            className="bg-loss/20 hover:bg-loss/30 border border-loss/30 text-loss font-bold py-2 rounded-md text-xs font-mono transition-all active:scale-95"
+                            className="bg-loss/20 hover:bg-loss/40 border border-loss/50 text-loss font-bold py-2 rounded-md text-xs font-mono transition-all active:scale-95 shadow-[0_0_10px_rgba(255,46,95,0.2)] hover:shadow-[0_0_15px_rgba(255,46,95,0.4)]"
                           >
                             NO
                           </button>
                           <button
                             onClick={() => handleMultiViewStake(pred, "YES")}
-                            className="bg-profit/20 hover:bg-profit/30 border border-profit/30 text-profit font-bold py-2 rounded-md text-xs font-mono transition-all active:scale-95"
+                            className="bg-profit/20 hover:bg-profit/40 border border-profit/50 text-profit font-bold py-2 rounded-md text-xs font-mono transition-all active:scale-95 shadow-[0_0_10px_rgba(0,217,139,0.2)] hover:shadow-[0_0_15px_rgba(0,217,139,0.4)]"
                           >
                             YES
                           </button>
@@ -1072,14 +1072,14 @@ export default function PredictClient() {
 
                 {/* Main Prediction Card */}
                 <div 
-                  className="bg-void-black border border-grail/30 rounded-lg overflow-hidden shadow-xl mb-4 lg:mb-0"
+                  className="bg-gradient-to-br from-void-graphite via-void-black to-void-graphite border border-grail/50 rounded-xl overflow-hidden shadow-[0_0_25px_rgba(125,44,255,0.2)] mb-4 lg:mb-0"
                   onClick={handleDoubleTap}
                 >
                 {/* Terminal Title Bar */}
-                <div className="bg-gradient-to-r from-void-graphite to-void-graphite/80 border-b border-grail/30 px-4 py-2 flex items-center justify-between">
+                <div className="bg-gradient-to-r from-grail/15 via-void-graphite to-neon/15 border-b border-grail/40 px-4 py-2 flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-neon animate-pulse shadow-lg shadow-neon/50"></div>
-                    <span className="text-gray-400 text-xs font-mono tracking-wider">PREDICTION_DATA</span>
+                    <div className="w-2 h-2 rounded-full bg-neon animate-pulse shadow-[0_0_10px_rgba(27,143,255,0.8)]"></div>
+                    <span className="text-grail-light text-xs font-mono tracking-wider">PREDICTION_DATA</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="text-xs font-mono text-gray-500">ID: {prediction.id}</div>
@@ -1087,16 +1087,16 @@ export default function PredictClient() {
                 </div>
 
                 {/* Asset Header */}
-                <div className="p-4 border-b border-grail/20">
+                <div className="p-4 border-b border-grail/30 bg-gradient-to-r from-grail/10 via-transparent to-neon/10">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-grail/20 to-grail/5 border border-grail/30 flex items-center justify-center text-xl">
+                      <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-grail/40 to-neon/30 border border-grail/60 flex items-center justify-center text-2xl shadow-[0_0_15px_rgba(125,44,255,0.4)]">
                         {prediction.asset_type === "crypto" ? "₿" : "📈"}
                       </div>
                       <div>
-                        <h3 className="text-xl font-black font-mono text-white">{prediction.asset}</h3>
+                        <h3 className="text-2xl font-black font-mono text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]">{prediction.asset}</h3>
                         <div className="flex items-center gap-2">
-                          <p className="text-xs text-gray-500 uppercase tracking-wider font-mono">
+                          <p className="text-xs text-grail-light uppercase tracking-wider font-mono">
                             {prediction.asset_type || "Market"}
                           </p>
                           {prediction.asset_type === "crypto" && prediction.created_price && (
@@ -1111,31 +1111,31 @@ export default function PredictClient() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-xs text-gray-500 mb-1 font-mono">RESOLVES_IN</div>
-                      <div className="text-lg font-bold text-neon font-mono tabular-nums">{timeLeft}</div>
+                      <div className="text-xs text-grail-pale mb-1 font-mono">RESOLVES_IN</div>
+                      <div className="text-xl font-bold text-neon font-mono tabular-nums drop-shadow-[0_0_10px_rgba(27,143,255,0.6)]">{timeLeft}</div>
                     </div>
                   </div>
                 </div>
 
                 {/* Prediction Text */}
-                <div className="p-4 border-b border-grail/20">
+                <div className="p-4 border-b border-grail/30 bg-gradient-to-b from-transparent to-grail/5">
                   <div className="flex items-center gap-2 mb-2">
-                    <div className="w-1 h-1 rounded-full bg-grail"></div>
-                    <span className="text-xs font-mono text-gray-500 uppercase">Question</span>
+                    <div className="w-1.5 h-1.5 rounded-full bg-grail shadow-[0_0_6px_rgba(125,44,255,0.8)]"></div>
+                    <span className="text-xs font-mono text-grail-light uppercase">Question</span>
                   </div>
-                  <p className="text-base text-gray-200 leading-relaxed font-mono">
+                  <p className="text-lg text-white leading-relaxed font-mono">
                     {prediction.prediction_text}
                   </p>
                 </div>
 
                 {/* Raw Text */}
                 {prediction.raw_text && (
-                  <div className="p-4 border-b border-grail/20 bg-void-graphite/30">
+                  <div className="p-4 border-b border-grail/30 bg-gradient-to-r from-auric/5 via-void-graphite/50 to-auric/5">
                     <div className="flex items-center gap-2 mb-2">
-                      <div className="w-1 h-1 rounded-full bg-auric"></div>
-                      <span className="text-xs font-mono text-gray-500 uppercase">Raw_Data</span>
+                      <div className="w-1.5 h-1.5 rounded-full bg-auric shadow-[0_0_6px_rgba(232,197,71,0.8)]"></div>
+                      <span className="text-xs font-mono text-auric uppercase">Raw_Data</span>
                     </div>
-                    <p className="text-sm text-gray-400 leading-relaxed font-mono">
+                    <p className="text-sm text-gray-300 leading-relaxed font-mono">
                       {prediction.raw_text}
                     </p>
                   </div>
@@ -1143,8 +1143,8 @@ export default function PredictClient() {
 
                 {/* Betting Close Timer */}
                 {prediction.betting_close && (
-                  <div className="p-4 border-b border-grail/20">
-                    <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-mono font-bold ${
+                  <div className="p-4 border-b border-grail/30">
+                    <div className={`flex items-center gap-2 px-4 py-3 rounded-lg text-sm font-mono font-bold ${
                       bettingClosed ? 'bg-loss/20 text-loss border border-loss/30' : 'bg-neon/20 text-neon border border-neon/30'
                     }`}>
                       <div className={`w-1.5 h-1.5 rounded-full ${bettingClosed ? 'bg-loss' : 'bg-neon animate-pulse'}`}></div>
@@ -1157,9 +1157,9 @@ export default function PredictClient() {
 
                 {/* User Balance - Only show for connected users */}
                 {isConnected && user ? (
-                  <div className="p-4 bg-void-graphite/50">
+                  <div className="p-4 bg-gradient-to-r from-auric/10 via-void-graphite/50 to-auric/10 border-t border-auric/30">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-mono text-gray-500 uppercase">Your_Balance</span>
+                      <span className="text-xs font-mono text-auric uppercase">Your_Balance</span>
                       <div className="flex items-center gap-2">
                         {isBalanceLoading ? (
                           <>
@@ -1169,33 +1169,33 @@ export default function PredictClient() {
                             </span>
                           </>
                         ) : (
-                          <span className="text-auric font-bold text-lg font-mono tabular-nums">
+                          <span className="text-auric font-bold text-xl font-mono tabular-nums drop-shadow-[0_0_8px_rgba(232,197,71,0.5)]">
                             {(localBalance ?? user.real_credits_balance).toFixed(3)}
                           </span>
                         )}
-                        <span className="text-xs font-mono text-gray-500">USDC</span>
+                        <span className="text-xs font-mono text-auric/70">USDC</span>
                       </div>
                     </div>
                   </div>
                 ) : (
-                  <div className="p-4 bg-grail/5 border-t border-grail/20">
+                  <div className="p-4 bg-gradient-to-r from-grail/10 via-void-graphite to-grail/10 border-t border-grail/30">
                     <div className="flex items-center justify-center gap-2 text-grail-light text-sm font-mono">
-                      <span>🔐</span>
+                      <span className="drop-shadow-[0_0_6px_rgba(125,44,255,0.8)]">🔐</span>
                       <span>Connect wallet to see balance</span>
                     </div>
                   </div>
                 )}
 
                 {/* Mobile Sentiment Bar - Only visible on mobile */}
-                <div className="md:hidden px-4 py-3 border-t border-grail/20 bg-void-graphite/30">
+                <div className="md:hidden px-4 py-3 border-t border-grail/30 bg-gradient-to-r from-grail/5 via-void-graphite/50 to-grail/5">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
-                      <div className="w-1 h-1 rounded-full bg-loss"></div>
-                      <span className="text-xs font-mono text-gray-500 uppercase">Sentiment</span>
+                      <div className="w-1.5 h-1.5 rounded-full bg-grail shadow-[0_0_6px_rgba(125,44,255,0.8)]"></div>
+                      <span className="text-xs font-mono text-grail-light uppercase">Sentiment</span>
                     </div>
-                    <span className="text-xs text-gray-500 font-mono">{totalVotes} votes</span>
+                    <span className="text-xs text-grail-pale font-mono">{totalVotes} votes</span>
                   </div>
-                  <div className="relative h-1.5 bg-void-black rounded-full overflow-hidden border border-grail/20">
+                  <div className="relative h-2 bg-void-black rounded-full overflow-hidden border border-grail/30 shadow-inner">
                     <div
                       className="absolute left-0 top-0 h-full bg-loss transition-all duration-500"
                       style={{ width: `${noPercent}%` }}
@@ -1205,35 +1205,35 @@ export default function PredictClient() {
                       style={{ width: `${yesPercent}%` }}
                     />
                   </div>
-                  <div className="flex justify-between text-[10px] font-mono font-bold mt-1">
-                    <span className="loss-text">{noPercent}%</span>
-                    <span className="profit-text">{yesPercent}%</span>
+                  <div className="flex justify-between text-xs font-mono font-bold mt-1">
+                    <span className="text-loss drop-shadow-[0_0_4px_rgba(255,46,95,0.5)]">{noPercent}%</span>
+                    <span className="text-profit drop-shadow-[0_0_4px_rgba(0,217,139,0.5)]">{yesPercent}%</span>
                   </div>
                 </div>
               </div>
 
               {/* Action Panel - Hidden on mobile, shown on desktop */}
-              <div className="hidden md:block bg-void-black border border-grail/30 rounded-lg overflow-hidden shadow-xl">
+              <div className="hidden md:block bg-gradient-to-br from-void-graphite via-void-black to-void-graphite border border-grail/50 rounded-xl overflow-hidden shadow-[0_0_25px_rgba(125,44,255,0.2)]">
                 {/* Terminal Title Bar */}
-                <div className="bg-gradient-to-r from-void-graphite to-void-graphite/80 border-b border-grail/30 px-4 py-2 flex items-center justify-between">
+                <div className="bg-gradient-to-r from-profit/15 via-void-graphite to-profit/15 border-b border-grail/40 px-4 py-2 flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-profit animate-pulse shadow-lg shadow-profit/50"></div>
-                    <span className="text-gray-400 text-xs font-mono tracking-wider">ACTION_PANEL</span>
+                    <div className="w-2 h-2 rounded-full bg-profit animate-pulse shadow-[0_0_10px_rgba(0,217,139,0.8)]"></div>
+                    <span className="text-profit text-xs font-mono tracking-wider">ACTION_PANEL</span>
                   </div>
                 </div>
 
                 {/* Market Sentiment */}
-                <div className="p-4 border-b border-grail/20">
+                <div className="p-4 border-b border-grail/30 bg-gradient-to-b from-transparent to-grail/5">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
-                      <div className="w-1 h-1 rounded-full bg-grail"></div>
-                      <span className="text-xs font-mono text-gray-500 uppercase">Market_Sentiment</span>
+                      <div className="w-1.5 h-1.5 rounded-full bg-grail shadow-[0_0_6px_rgba(125,44,255,0.8)]"></div>
+                      <span className="text-xs font-mono text-grail-light uppercase">Market_Sentiment</span>
                     </div>
-                    <span className="text-xs text-gray-500 font-mono">{totalVotes} votes</span>
+                    <span className="text-xs text-grail-pale font-mono">{totalVotes} votes</span>
                   </div>
                   
                   {/* Sentiment Bar */}
-                  <div className="relative h-2 bg-void-black rounded-full overflow-hidden mb-3 border border-grail/20">
+                  <div className="relative h-3 bg-void-black rounded-full overflow-hidden mb-3 border border-grail/30 shadow-inner">
                     <div
                       className="absolute left-0 top-0 h-full bg-loss transition-all duration-500"
                       style={{ width: `${noPercent}%` }}
@@ -1245,9 +1245,9 @@ export default function PredictClient() {
                   </div>
 
                   {/* Percentages */}
-                  <div className="flex justify-between text-xs font-mono font-bold">
-                    <span className="loss-text">{noPercent}% NO</span>
-                    <span className="profit-text">{yesPercent}% YES</span>
+                  <div className="flex justify-between text-sm font-mono font-bold">
+                    <span className="text-loss drop-shadow-[0_0_6px_rgba(255,46,95,0.5)]">{noPercent}% NO</span>
+                    <span className="text-profit drop-shadow-[0_0_6px_rgba(0,217,139,0.5)]">{yesPercent}% YES</span>
                   </div>
                 </div>
 
@@ -1258,7 +1258,7 @@ export default function PredictClient() {
                       <button
                         onClick={() => handleStake("NO")}
                         disabled={bettingClosed || isSubmitting}
-                        className="group relative bg-gradient-to-br from-loss to-loss/80 md:hover:from-loss/90 md:hover:to-loss/70 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-6 rounded-lg transition-all md:hover:scale-[1.02] active:scale-95 border border-loss/50 shadow-lg shadow-loss/20 font-mono overflow-hidden"
+                        className="group relative bg-gradient-to-br from-loss to-loss/80 md:hover:from-loss md:hover:to-loss/90 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-6 rounded-xl transition-all md:hover:scale-[1.02] active:scale-95 border border-loss/60 shadow-[0_0_20px_rgba(255,46,95,0.3)] md:hover:shadow-[0_0_30px_rgba(255,46,95,0.5)] font-mono overflow-hidden"
                       >
                         <div className="absolute inset-0 bg-loss/20 opacity-0 md:group-hover:opacity-100 transition-opacity"></div>
                         <div className="relative flex flex-col items-center justify-center gap-1">
@@ -1270,7 +1270,7 @@ export default function PredictClient() {
                       <button
                         onClick={handleSkip}
                         disabled={isSubmitting}
-                        className="group relative bg-void-graphite md:hover:bg-void-graphite/60 disabled:opacity-50 disabled:cursor-not-allowed text-gray-400 md:hover:text-white font-bold py-6 rounded-lg transition-all border border-grail/20 md:hover:border-grail/40 font-mono overflow-hidden active:scale-95"
+                        className="group relative bg-gradient-to-br from-void-graphite to-grail/10 md:hover:from-grail/20 md:hover:to-grail/10 disabled:opacity-50 disabled:cursor-not-allowed text-gray-300 md:hover:text-white font-bold py-6 rounded-xl transition-all border border-grail/40 md:hover:border-grail/60 shadow-[0_0_15px_rgba(125,44,255,0.15)] md:hover:shadow-[0_0_20px_rgba(125,44,255,0.3)] font-mono overflow-hidden active:scale-95"
                       >
                         <div className="absolute inset-0 bg-grail/10 opacity-0 md:group-hover:opacity-100 transition-opacity"></div>
                         <div className="relative flex flex-col items-center justify-center gap-1">
@@ -1282,7 +1282,7 @@ export default function PredictClient() {
                       <button
                         onClick={() => handleStake("YES")}
                         disabled={bettingClosed || isSubmitting}
-                        className="group relative bg-gradient-to-br from-profit to-profit/80 md:hover:from-profit/90 md:hover:to-profit/70 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-6 rounded-lg transition-all md:hover:scale-[1.02] active:scale-95 border border-profit/50 shadow-lg shadow-profit/20 font-mono overflow-hidden"
+                        className="group relative bg-gradient-to-br from-profit to-profit/80 md:hover:from-profit md:hover:to-profit/90 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-6 rounded-xl transition-all md:hover:scale-[1.02] active:scale-95 border border-profit/60 shadow-[0_0_20px_rgba(0,217,139,0.3)] md:hover:shadow-[0_0_30px_rgba(0,217,139,0.5)] font-mono overflow-hidden"
                       >
                         <div className="absolute inset-0 bg-profit/20 opacity-0 md:group-hover:opacity-100 transition-opacity"></div>
                         <div className="relative flex flex-col items-center justify-center gap-1">
@@ -1318,18 +1318,18 @@ export default function PredictClient() {
                 </div>
 
                 {/* Instructions */}
-                <div className="p-4 bg-void-graphite/30 border-t border-grail/20">
-                  <div className="space-y-2 text-xs font-mono text-gray-500">
+                <div className="p-4 bg-gradient-to-t from-void-black to-transparent border-t border-grail/30">
+                  <div className="space-y-2 text-xs font-mono text-gray-400">
                     <div className="flex items-center gap-2">
-                      <div className="w-1 h-1 rounded-full bg-loss"></div>
+                      <div className="w-1.5 h-1.5 rounded-full bg-loss shadow-[0_0_4px_rgba(255,46,95,0.8)]"></div>
                       <span>NO: Predict outcome won&apos;t occur</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className="w-1 h-1 rounded-full bg-gray-500"></div>
+                      <div className="w-1.5 h-1.5 rounded-full bg-grail shadow-[0_0_4px_rgba(125,44,255,0.8)]"></div>
                       <span>SKIP: Pass to next prediction</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className="w-1 h-1 rounded-full bg-profit"></div>
+                      <div className="w-1.5 h-1.5 rounded-full bg-profit shadow-[0_0_4px_rgba(0,217,139,0.8)]"></div>
                       <span>YES: Predict outcome will occur</span>
                     </div>
                   </div>
@@ -1358,7 +1358,7 @@ export default function PredictClient() {
                 <button
                   onClick={() => handleStake("NO")}
                   disabled={bettingClosed || isSubmitting}
-                  className="flex-1 h-10 rounded-lg bg-void-black disabled:opacity-40 disabled:cursor-not-allowed text-loss font-mono font-bold text-xs tracking-wider transition-all active:scale-95 border border-loss/40 flex items-center justify-center"
+                  className="flex-1 h-10 rounded-xl bg-gradient-to-br from-loss/30 to-loss/10 disabled:opacity-40 disabled:cursor-not-allowed text-loss font-mono font-bold text-xs tracking-wider transition-all active:scale-95 border border-loss/50 shadow-[0_0_15px_rgba(255,46,95,0.25)] flex items-center justify-center"
                 >
                   <span>{isSubmitting && selectedPosition === "NO" ? "..." : "NO"}</span>
                 </button>
@@ -1367,7 +1367,7 @@ export default function PredictClient() {
                 <button
                   onClick={handleSkip}
                   disabled={isSubmitting}
-                  className="h-10 px-4 rounded-lg bg-void-graphite disabled:opacity-40 disabled:cursor-not-allowed text-gray-300 font-mono font-bold text-xs tracking-wider transition-all active:scale-95 border border-grail/30 flex items-center justify-center"
+                  className="h-10 px-4 rounded-xl bg-gradient-to-br from-grail/20 to-grail/5 disabled:opacity-40 disabled:cursor-not-allowed text-grail-light font-mono font-bold text-xs tracking-wider transition-all active:scale-95 border border-grail/40 shadow-[0_0_10px_rgba(125,44,255,0.2)] flex items-center justify-center"
                 >
                   <span>SKIP</span>
                 </button>
@@ -1376,7 +1376,7 @@ export default function PredictClient() {
                 <button
                   onClick={() => handleStake("YES")}
                   disabled={bettingClosed || isSubmitting}
-                  className="flex-1 h-10 rounded-lg bg-void-black disabled:opacity-40 disabled:cursor-not-allowed text-profit font-mono font-bold text-xs tracking-wider transition-all active:scale-95 border border-profit/40 flex items-center justify-center"
+                  className="flex-1 h-10 rounded-xl bg-gradient-to-br from-profit/30 to-profit/10 disabled:opacity-40 disabled:cursor-not-allowed text-profit font-mono font-bold text-xs tracking-wider transition-all active:scale-95 border border-profit/50 shadow-[0_0_15px_rgba(0,217,139,0.25)] flex items-center justify-center"
                 >
                   <span>{isSubmitting && selectedPosition === "YES" ? "..." : "YES"}</span>
                 </button>
@@ -1385,20 +1385,20 @@ export default function PredictClient() {
               // Guest - Disabled YES/NO, active SKIP
               <div className="flex items-center justify-between gap-3">
                 {/* NO Button - Disabled */}
-                <div className="flex-1 h-10 rounded-lg bg-void-black/60 border border-loss/20 text-loss/30 flex items-center justify-center cursor-not-allowed font-mono font-bold text-xs tracking-wider">
+                <div className="flex-1 h-10 rounded-xl bg-void-black/60 border border-loss/30 text-loss/40 flex items-center justify-center cursor-not-allowed font-mono font-bold text-xs tracking-wider">
                   <span>NO</span>
                 </div>
 
                 {/* SKIP Button - Active for guests */}
                 <button
                   onClick={handleSkip}
-                  className="h-10 px-4 rounded-lg bg-void-graphite text-gray-300 font-mono font-bold text-xs tracking-wider transition-all active:scale-95 border border-grail/30 flex items-center justify-center"
+                  className="h-10 px-4 rounded-xl bg-gradient-to-br from-grail/20 to-grail/5 text-grail-light font-mono font-bold text-xs tracking-wider transition-all active:scale-95 border border-grail/40 shadow-[0_0_10px_rgba(125,44,255,0.2)] flex items-center justify-center"
                 >
                   <span>SKIP</span>
                 </button>
 
                 {/* YES Button - Disabled */}
-                <div className="flex-1 h-10 rounded-lg bg-void-black/60 border border-profit/20 text-profit/30 flex items-center justify-center cursor-not-allowed font-mono font-bold text-xs tracking-wider">
+                <div className="flex-1 h-10 rounded-xl bg-void-black/60 border border-profit/30 text-profit/40 flex items-center justify-center cursor-not-allowed font-mono font-bold text-xs tracking-wider">
                   <span>YES</span>
                 </div>
               </div>
@@ -1409,7 +1409,7 @@ export default function PredictClient() {
 
       {/* Fixed Bottom Bar - Stake Amount Slider (for connected users) or Connect CTA (for guests) */}
       {((viewMode === "single" && prediction) || (viewMode === "multi" && allPredictions.length > 0)) && (
-        <div className="fixed bottom-0 left-0 right-0 bg-void-black/95 backdrop-blur-lg border-t border-grail/30 shadow-2xl z-40">
+        <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-void-black via-void-black/98 to-void-black/95 backdrop-blur-lg border-t border-grail/40 shadow-[0_-10px_30px_rgba(125,44,255,0.1)] z-40">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3 sm:py-4">
             {!isConnected ? (
               // Guest - Show connect wallet CTA
@@ -1419,7 +1419,7 @@ export default function PredictClient() {
                     <button
                       onClick={openConnectModal}
                       disabled={!mounted}
-                      className="flex items-center gap-2 bg-gradient-to-r from-grail to-grail-light hover:from-grail-light hover:to-grail text-white font-bold py-3 px-6 rounded-lg font-mono transition-all active:scale-95 shadow-lg shadow-grail/20"
+                      className="flex items-center gap-2 bg-gradient-to-r from-grail to-grail-light hover:from-grail-light hover:to-grail text-white font-bold py-3 px-8 rounded-xl font-mono transition-all active:scale-95 shadow-[0_0_25px_rgba(125,44,255,0.4)] hover:shadow-[0_0_35px_rgba(125,44,255,0.6)]"
                     >
                       <span>Connect Wallet to Predict</span>
                     </button>
