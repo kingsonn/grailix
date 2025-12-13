@@ -833,7 +833,7 @@ export default function PredictClient() {
                     
                     {/* Question */}
                     <div className="p-3 bg-gradient-to-b from-transparent to-grail/5">
-                      <p className="text-xs text-gray-100 font-mono leading-relaxed line-clamp-3">
+                      <p className="text-xs text-gray-100 font-mono leading-relaxed line-clamp-3 min-h-[2.5rem]">
                         {pred.prediction_text}
                       </p>
                     </div>
@@ -900,18 +900,18 @@ export default function PredictClient() {
             onClick={() => setInfoModalPrediction(null)}
           >
             <div 
-              className="bg-void-black border border-grail/30 rounded-lg max-w-lg w-full max-h-[80vh] overflow-y-auto"
+              className="bg-gradient-to-br from-void-graphite via-void-black to-void-graphite border border-grail/50 rounded-xl max-w-lg w-full max-h-[80vh] overflow-y-auto shadow-[0_0_40px_rgba(125,44,255,0.3)]"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Modal Header */}
-              <div className="bg-gradient-to-r from-void-graphite to-void-graphite/80 border-b border-grail/30 px-4 py-3 flex items-center justify-between sticky top-0">
+              <div className="bg-gradient-to-r from-grail/15 via-void-graphite to-neon/15 border-b border-grail/40 px-4 py-3 flex items-center justify-between sticky top-0">
                 <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-neon animate-pulse"></div>
-                  <span className="text-gray-400 text-xs font-mono">PREDICTION_DETAILS</span>
+                  <div className="w-2 h-2 rounded-full bg-neon animate-pulse shadow-[0_0_10px_rgba(27,143,255,0.8)]"></div>
+                  <span className="text-grail-light text-xs font-mono tracking-wider">PREDICTION_DETAILS</span>
                 </div>
                 <button
                   onClick={() => setInfoModalPrediction(null)}
-                  className="p-1 rounded-md hover:bg-grail/20 text-gray-400 hover:text-white transition-colors"
+                  className="p-1.5 rounded-lg hover:bg-grail/20 text-gray-400 hover:text-white transition-colors border border-grail/20 hover:border-grail/40"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -922,46 +922,71 @@ export default function PredictClient() {
               {/* Modal Content */}
               <div className="p-4 space-y-4">
                 {/* Asset */}
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-grail/20 to-grail/5 border border-grail/30 flex items-center justify-center text-2xl">
-                    {infoModalPrediction.asset_type === "crypto" ? "₿" : "📈"}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-grail/40 to-neon/30 border border-grail/60 flex items-center justify-center text-2xl shadow-[0_0_15px_rgba(125,44,255,0.4)]">
+                      {infoModalPrediction.asset_type === "crypto" ? "₿" : "📈"}
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-bold font-mono text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]">{infoModalPrediction.asset}</h3>
+                      <p className="text-xs text-grail-light uppercase font-mono">{infoModalPrediction.asset_type}</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-xl font-bold font-mono text-white">{infoModalPrediction.asset}</h3>
-                    <p className="text-xs text-gray-500 uppercase font-mono">{infoModalPrediction.asset_type}</p>
+                  {/* Expiry Time - show time left */}
+                  <div className="text-right">
+                    <div className="text-xs text-grail-pale mb-1 font-mono">TIME_LEFT</div>
+                    <div className="text-sm font-bold text-neon font-mono tabular-nums drop-shadow-[0_0_8px_rgba(27,143,255,0.6)]">
+                      {(() => {
+                        const now = Date.now();
+                        const expiry = new Date(infoModalPrediction.expiry_timestamp).getTime();
+                        const diff = Math.max(expiry - now, 0);
+
+                        if (diff <= 0) return "Expired";
+
+                        const hours = Math.floor(diff / 3600000);
+                        const minutes = Math.floor((diff % 3600000) / 60000);
+                        const seconds = Math.floor((diff % 60000) / 1000);
+
+                        if (hours > 0) {
+                          return `${hours}h ${minutes}m`;
+                        }
+
+                        return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+                      })()}
+                    </div>
                   </div>
                 </div>
                 
                 {/* Question */}
-                <div>
+                <div className="bg-gradient-to-b from-grail/10 to-transparent p-3 rounded-lg border border-grail/20">
                   <div className="flex items-center gap-2 mb-2">
-                    <div className="w-1 h-1 rounded-full bg-grail"></div>
-                    <span className="text-xs font-mono text-gray-500 uppercase">Question</span>
+                    <div className="w-1.5 h-1.5 rounded-full bg-grail shadow-[0_0_6px_rgba(125,44,255,0.8)]"></div>
+                    <span className="text-xs font-mono text-grail-light uppercase">Question</span>
                   </div>
-                  <p className="text-sm text-gray-200 font-mono leading-relaxed">{infoModalPrediction.prediction_text}</p>
+                  <p className="text-base text-white font-mono leading-relaxed">{infoModalPrediction.prediction_text}</p>
                 </div>
                 
                 {/* Raw Text */}
                 {infoModalPrediction.raw_text && (
-                  <div>
+                  <div className="bg-gradient-to-r from-auric/5 via-void-graphite/50 to-auric/5 p-3 rounded-lg border border-auric/20">
                     <div className="flex items-center gap-2 mb-2">
-                      <div className="w-1 h-1 rounded-full bg-auric"></div>
-                      <span className="text-xs font-mono text-gray-500 uppercase">Raw_Data</span>
+                      <div className="w-1.5 h-1.5 rounded-full bg-auric shadow-[0_0_6px_rgba(232,197,71,0.8)]"></div>
+                      <span className="text-xs font-mono text-auric uppercase">Raw_Data</span>
                     </div>
-                    <p className="text-xs text-gray-400 font-mono leading-relaxed bg-void-graphite/50 p-3 rounded-lg">{infoModalPrediction.raw_text}</p>
+                    <p className="text-xs text-gray-300 font-mono leading-relaxed">{infoModalPrediction.raw_text}</p>
                   </div>
                 )}
                 
                 {/* Sentiment */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
+                <div className="bg-gradient-to-b from-transparent to-grail/5 p-3 rounded-lg border border-grail/20">
+                  <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
-                      <div className="w-1 h-1 rounded-full bg-grail"></div>
-                      <span className="text-xs font-mono text-gray-500 uppercase">Sentiment</span>
+                      <div className="w-1.5 h-1.5 rounded-full bg-grail shadow-[0_0_6px_rgba(125,44,255,0.8)]"></div>
+                      <span className="text-xs font-mono text-grail-light uppercase">Sentiment</span>
                     </div>
-                    <span className="text-xs text-gray-500 font-mono">{infoModalPrediction.sentiment_yes + infoModalPrediction.sentiment_no} votes</span>
+                    <span className="text-xs text-grail-pale font-mono">{infoModalPrediction.sentiment_yes + infoModalPrediction.sentiment_no} votes</span>
                   </div>
-                  <div className="relative h-2 bg-void-graphite rounded-full overflow-hidden mb-2">
+                  <div className="relative h-3 bg-void-black rounded-full overflow-hidden mb-2 border border-grail/30 shadow-inner">
                     <div
                       className="absolute left-0 top-0 h-full bg-loss"
                       style={{ width: `${(infoModalPrediction.sentiment_yes + infoModalPrediction.sentiment_no) > 0 ? Math.round((infoModalPrediction.sentiment_no / (infoModalPrediction.sentiment_yes + infoModalPrediction.sentiment_no)) * 100) : 50}%` }}
@@ -971,9 +996,9 @@ export default function PredictClient() {
                       style={{ width: `${(infoModalPrediction.sentiment_yes + infoModalPrediction.sentiment_no) > 0 ? Math.round((infoModalPrediction.sentiment_yes / (infoModalPrediction.sentiment_yes + infoModalPrediction.sentiment_no)) * 100) : 50}%` }}
                     />
                   </div>
-                  <div className="flex justify-between text-xs font-mono font-bold">
-                    <span className="text-loss">{(infoModalPrediction.sentiment_yes + infoModalPrediction.sentiment_no) > 0 ? Math.round((infoModalPrediction.sentiment_no / (infoModalPrediction.sentiment_yes + infoModalPrediction.sentiment_no)) * 100) : 50}% NO</span>
-                    <span className="text-profit">{(infoModalPrediction.sentiment_yes + infoModalPrediction.sentiment_no) > 0 ? Math.round((infoModalPrediction.sentiment_yes / (infoModalPrediction.sentiment_yes + infoModalPrediction.sentiment_no)) * 100) : 50}% YES</span>
+                  <div className="flex justify-between text-sm font-mono font-bold">
+                    <span className="text-loss drop-shadow-[0_0_6px_rgba(255,46,95,0.5)]">{(infoModalPrediction.sentiment_yes + infoModalPrediction.sentiment_no) > 0 ? Math.round((infoModalPrediction.sentiment_no / (infoModalPrediction.sentiment_yes + infoModalPrediction.sentiment_no)) * 100) : 50}% NO</span>
+                    <span className="text-profit drop-shadow-[0_0_6px_rgba(0,217,139,0.5)]">{(infoModalPrediction.sentiment_yes + infoModalPrediction.sentiment_no) > 0 ? Math.round((infoModalPrediction.sentiment_yes / (infoModalPrediction.sentiment_yes + infoModalPrediction.sentiment_no)) * 100) : 50}% YES</span>
                   </div>
                 </div>
                 
@@ -985,7 +1010,7 @@ export default function PredictClient() {
                         handleMultiViewStake(infoModalPrediction, "NO");
                         setInfoModalPrediction(null);
                       }}
-                      className="bg-loss/20 hover:bg-loss/30 border border-loss/30 text-loss font-bold py-3 rounded-lg text-sm font-mono transition-all active:scale-95"
+                      className="bg-loss/20 hover:bg-loss/40 border border-loss/50 text-loss font-bold py-3 rounded-xl text-sm font-mono transition-all active:scale-95 shadow-[0_0_15px_rgba(255,46,95,0.2)] hover:shadow-[0_0_20px_rgba(255,46,95,0.4)]"
                     >
                       NO
                     </button>
@@ -994,7 +1019,7 @@ export default function PredictClient() {
                         handleMultiViewStake(infoModalPrediction, "YES");
                         setInfoModalPrediction(null);
                       }}
-                      className="bg-profit/20 hover:bg-profit/30 border border-profit/30 text-profit font-bold py-3 rounded-lg text-sm font-mono transition-all active:scale-95"
+                      className="bg-profit/20 hover:bg-profit/40 border border-profit/50 text-profit font-bold py-3 rounded-xl text-sm font-mono transition-all active:scale-95 shadow-[0_0_15px_rgba(0,217,139,0.2)] hover:shadow-[0_0_20px_rgba(0,217,139,0.4)]"
                     >
                       YES
                     </button>
@@ -1005,7 +1030,7 @@ export default function PredictClient() {
                       <button
                         onClick={openConnectModal}
                         disabled={!mounted}
-                        className="w-full bg-grail/20 hover:bg-grail/30 border border-grail/30 text-grail-light font-bold py-3 rounded-lg text-sm font-mono transition-all active:scale-95"
+                        className="w-full bg-grail/20 hover:bg-grail/30 border border-grail/50 text-grail-light font-bold py-3 rounded-xl text-sm font-mono transition-all active:scale-95 shadow-[0_0_20px_rgba(125,44,255,0.3)] hover:shadow-[0_0_25px_rgba(125,44,255,0.5)]"
                       >
                         🔐 Connect Wallet to Vote
                       </button>

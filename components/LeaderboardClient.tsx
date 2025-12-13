@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useAccount } from "wagmi";
 import AppLayout from "@/components/AppLayout";
 
 interface LeaderboardEntry {
@@ -16,7 +17,9 @@ interface LeaderboardEntry {
  */
 export default function LeaderboardClient() {
   const router = useRouter();
+  const { address, isConnected } = useAccount();
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [userRank, setUserRank] = useState<{ rank: number; entry: LeaderboardEntry } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,7 +33,21 @@ export default function LeaderboardClient() {
       const data = await response.json();
 
       if (data.success) {
-        setLeaderboard(data.data.leaderboard || []);
+        const leaderboardData = data.data.leaderboard || [];
+        setLeaderboard(leaderboardData);
+        
+        // Find user's rank if connected
+        if (isConnected && address) {
+          const userIndex = leaderboardData.findIndex(
+            (entry: LeaderboardEntry) => entry.wallet_address.toLowerCase() === address.toLowerCase()
+          );
+          if (userIndex !== -1) {
+            setUserRank({ rank: userIndex + 1, entry: leaderboardData[userIndex] });
+          } else {
+            // User not in top 50, fetch their rank separately
+            fetchUserRank();
+          }
+        }
       } else {
         setError(data.error || "Failed to fetch leaderboard");
       }
@@ -42,9 +59,26 @@ export default function LeaderboardClient() {
     }
   };
 
+  // Fetch user's rank if not in top 50
+  const fetchUserRank = async () => {
+    if (!address) return;
+    
+    try {
+      const response = await fetch(`/api/leaderboard/user-rank?wallet=${address}`);
+      const data = await response.json();
+      
+      if (data.success && data.data) {
+        setUserRank({ rank: data.data.rank, entry: data.data.entry });
+      }
+    } catch (err) {
+      console.error("Error fetching user rank:", err);
+    }
+  };
+
   useEffect(() => {
     fetchLeaderboard();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [address, isConnected]);
 
   return (
     <AppLayout>
@@ -122,40 +156,89 @@ export default function LeaderboardClient() {
                   </tr>
                 </thead>
                 <tbody>
-                  {leaderboard.map((entry, index) => (
-                    <tr
-                      key={entry.wallet_address}
-                      className="border-t border-grail/20 hover:bg-void-graphite/30 transition-colors"
-                    >
-                      <td className="py-3 px-4 sm:px-6">
-                        <span
-                          className={`font-bold text-base font-mono ${
-                            index === 0
-                              ? "text-auric"
-                              : index === 1
-                              ? "text-gray-300"
-                              : index === 2
-                              ? "text-orange-400"
-                              : "text-gray-400"
-                          }`}
-                        >
-                          {index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `#${index + 1}`}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 sm:px-6 font-mono text-xs sm:text-sm text-gray-300">
-                        {entry.wallet_address.slice(0, 6)}...{entry.wallet_address.slice(-4)}
-                      </td>
-                      <td className="py-3 px-4 sm:px-6 text-right font-bold font-mono tabular-nums text-grail-light">
-                        {entry.xp.toLocaleString()}
-                      </td>
-                      <td className="py-3 px-4 sm:px-6 text-right font-bold font-mono tabular-nums text-auric">
-                        {entry.streak}
-                      </td>
-                      <td className="py-3 px-4 sm:px-6 text-right font-bold font-mono tabular-nums text-profit">
-                        {(entry.accuracy).toFixed(1)}%
-                      </td>
-                    </tr>
-                  ))}
+                  {leaderboard.map((entry, index) => {
+                    const isCurrentUser = isConnected && address && entry.wallet_address.toLowerCase() === address.toLowerCase();
+                    return (
+                      <tr
+                        key={entry.wallet_address}
+                        className={`border-t transition-colors ${
+                          isCurrentUser 
+                            ? "bg-gradient-to-r from-grail/20 via-grail/10 to-grail/20 border-grail/40 shadow-[0_0_15px_rgba(125,44,255,0.2)]" 
+                            : "border-grail/20 hover:bg-void-graphite/30"
+                        }`}
+                      >
+                        <td className="py-3 px-4 sm:px-6">
+                          <span
+                            className={`font-bold text-base font-mono ${
+                              index === 0
+                                ? "text-auric drop-shadow-[0_0_8px_rgba(232,197,71,0.6)]"
+                                : index === 1
+                                ? "text-gray-300"
+                                : index === 2
+                                ? "text-orange-400"
+                                : isCurrentUser
+                                ? "text-grail-light"
+                                : "text-gray-400"
+                            }`}
+                          >
+                            {index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `#${index + 1}`}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 sm:px-6 font-mono text-xs sm:text-sm">
+                          <span className={isCurrentUser ? "text-white font-bold" : "text-gray-300"}>
+                            {entry.wallet_address.slice(0, 6)}...{entry.wallet_address.slice(-4)}
+                          </span>
+                          {isCurrentUser && (
+                            <span className="ml-2 text-[10px] bg-grail/30 text-grail-light px-1.5 py-0.5 rounded font-bold">YOU</span>
+                          )}
+                        </td>
+                        <td className={`py-3 px-4 sm:px-6 text-right font-bold font-mono tabular-nums ${isCurrentUser ? "text-grail-light drop-shadow-[0_0_6px_rgba(166,108,255,0.5)]" : "text-grail-light"}`}>
+                          {entry.xp.toLocaleString()}
+                        </td>
+                        <td className={`py-3 px-4 sm:px-6 text-right font-bold font-mono tabular-nums ${isCurrentUser ? "text-auric drop-shadow-[0_0_6px_rgba(232,197,71,0.5)]" : "text-auric"}`}>
+                          {entry.streak}
+                        </td>
+                        <td className={`py-3 px-4 sm:px-6 text-right font-bold font-mono tabular-nums ${isCurrentUser ? "text-profit drop-shadow-[0_0_6px_rgba(0,217,139,0.5)]" : "text-profit"}`}>
+                          {(entry.accuracy).toFixed(1)}%
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  
+                  {/* User's rank if not in top 50 */}
+                  {userRank && userRank.rank > 50 && (
+                    <>
+                      {/* Separator */}
+                      <tr className="border-t border-grail/30">
+                        <td colSpan={5} className="py-2 text-center">
+                          <span className="text-gray-500 text-xs font-mono">• • •</span>
+                        </td>
+                      </tr>
+                      {/* User's row */}
+                      <tr className="border-t bg-gradient-to-r from-grail/20 via-grail/10 to-grail/20 border-grail/40 shadow-[0_0_15px_rgba(125,44,255,0.2)]">
+                        <td className="py-3 px-4 sm:px-6">
+                          <span className="font-bold text-base font-mono text-grail-light">
+                            #{userRank.rank}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 sm:px-6 font-mono text-xs sm:text-sm">
+                          <span className="text-white font-bold">
+                            {userRank.entry.wallet_address.slice(0, 6)}...{userRank.entry.wallet_address.slice(-4)}
+                          </span>
+                          <span className="ml-2 text-[10px] bg-grail/30 text-grail-light px-1.5 py-0.5 rounded font-bold">YOU</span>
+                        </td>
+                        <td className="py-3 px-4 sm:px-6 text-right font-bold font-mono tabular-nums text-grail-light drop-shadow-[0_0_6px_rgba(166,108,255,0.5)]">
+                          {userRank.entry.xp.toLocaleString()}
+                        </td>
+                        <td className="py-3 px-4 sm:px-6 text-right font-bold font-mono tabular-nums text-auric drop-shadow-[0_0_6px_rgba(232,197,71,0.5)]">
+                          {userRank.entry.streak}
+                        </td>
+                        <td className="py-3 px-4 sm:px-6 text-right font-bold font-mono tabular-nums text-profit drop-shadow-[0_0_6px_rgba(0,217,139,0.5)]">
+                          {(userRank.entry.accuracy).toFixed(1)}%
+                        </td>
+                      </tr>
+                    </>
+                  )}
                 </tbody>
               </table>
             </div>
